@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whispergram - Benutzer Persistenz Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        button {
+            background: #0084ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0066cc;
+        }
+        .user-list {
+            background: #333;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background: #0f5132;
+            border: 1px solid #0a3622;
+        }
+        .error {
+            background: #58151c;
+            border: 1px solid #721c24;
+        }
+        .info {
+            background: #055160;
+            border: 1px solid #0c525d;
+        }
+        input {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Whispergram Benutzer-Persistenz Test</h1>
+    <p>Dieser Test überprüft, ob Benutzerprofile persistent bleiben und nicht verschwinden.</p>
+
+    <div class="test-section">
+        <h2>📊 Aktueller Status</h2>
+        <div id="status" class="status info">
+            Server-Status: Unbekannt
+        </div>
+        <button onclick="checkServerStatus()">Server Status Prüfen</button>
+        <button onclick="listAllUsers()">Alle Benutzer Auflisten</button>
+    </div>
+
+    <div class="test-section">
+        <h2>👥 Benutzer im System</h2>
+        <div id="userList" class="user-list">
+            Klicken Sie "Alle Benutzer Auflisten" um die aktuellen Benutzer zu sehen.
+        </div>
+        <p><strong>Erwartete Benutzer:</strong> TestUser123, Alice, Bob, Anton, sniper, anton1</p>
+    </div>
+
+    <div class="test-section">
+        <h2>🔑 Login Test</h2>
+        <p>Testen Sie, ob bestehende Benutzer sich anmelden können:</p>
+        <input type="text" id="username" placeholder="Benutzername (z.B. Alice)" value="Alice">
+        <input type="password" id="password" placeholder="Passwort" value="123456">
+        <button onclick="testLogin()">Login Testen</button>
+        <div id="loginResult" class="status info">
+            Bereit für Login-Test
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔄 Kontinuierlicher Test</h2>
+        <p>Überprüfung alle 30 Sekunden, ob Benutzer verschwinden:</p>
+        <button onclick="startContinuousTest()">Kontinuierlichen Test Starten</button>
+        <button onclick="stopContinuousTest()">Test Stoppen</button>
+        <div id="continuousResult" class="status info">
+            Test nicht gestartet
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Test-Log</h2>
+        <div id="testLog" class="user-list">
+            Test-Log wird hier angezeigt...
+        </div>
+        <button onclick="clearLog()">Log Leeren</button>
+    </div>
+
+    <script>
+        let continuousTestInterval = null;
+        let testStartTime = new Date();
+        let lastUserCount = 0;
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('testLog');
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function clearLog() {
+            document.getElementById('testLog').textContent = '';
+            log('Test-Log geleert');
+        }
+
+        async function checkServerStatus() {
+            try {
+                const response = await fetch('/api/search-users?q=');
+                if (response.ok) {
+                    document.getElementById('status').className = 'status success';
+                    document.getElementById('status').textContent = 'Server-Status: ✅ Online und erreichbar';
+                    log('Server-Status: Online und funktional');
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                document.getElementById('status').className = 'status error';
+                document.getElementById('status').textContent = `Server-Status: ❌ Offline oder Fehler (${error.message})`;
+                log(`Server-Status: Fehler - ${error.message}`);
+            }
+        }
+
+        async function listAllUsers() {
+            try {
+                const response = await fetch('/api/search-users?q=');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const users = await response.json();
+                const userList = document.getElementById('userList');
+                
+                if (users.length === 0) {
+                    userList.textContent = '⚠️ PROBLEM: Keine Benutzer gefunden!';
+                    userList.className = 'user-list error';
+                    log('KRITISCH: Keine Benutzer im System gefunden!');
+                } else {
+                    const userInfo = users.map(user => 
+                        `ID: ${user.id} | Username: ${user.username} | Online: ${user.isOnline ? '🟢' : '🔴'} | Letzter Login: ${new Date(user.lastSeen).toLocaleString()}`
+                    ).join('\n');
+                    
+                    userList.textContent = `✅ ${users.length} Benutzer gefunden:\n\n${userInfo}`;
+                    userList.className = 'user-list success';
+                    log(`Benutzer-Liste erfolgreich geladen: ${users.length} Benutzer`);
+                    
+                    // Kontinuierlicher Test - Benutzeranzahl verfolgen
+                    if (lastUserCount > 0 && users.length !== lastUserCount) {
+                        log(`⚠️ ACHTUNG: Benutzeranzahl geändert! Vorher: ${lastUserCount}, Jetzt: ${users.length}`);
+                    }
+                    lastUserCount = users.length;
+                }
+            } catch (error) {
+                document.getElementById('userList').textContent = `❌ Fehler beim Laden der Benutzer: ${error.message}`;
+                document.getElementById('userList').className = 'user-list error';
+                log(`Fehler beim Laden der Benutzerliste: ${error.message}`);
+            }
+        }
+
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultElement = document.getElementById('loginResult');
+            
+            if (!username || !password) {
+                resultElement.className = 'status error';
+                resultElement.textContent = '❌ Bitte Benutzername und Passwort eingeben';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    resultElement.className = 'status success';
+                    resultElement.textContent = `✅ Login erfolgreich! Benutzer-ID: ${result.user.id}, Username: ${result.user.username}`;
+                    log(`Login erfolgreich: ${username} (ID: ${result.user.id})`);
+                } else {
+                    const error = await response.json();
+                    resultElement.className = 'status error';
+                    resultElement.textContent = `❌ Login fehlgeschlagen: ${error.message}`;
+                    log(`Login fehlgeschlagen für ${username}: ${error.message}`);
+                }
+            } catch (error) {
+                resultElement.className = 'status error';
+                resultElement.textContent = `❌ Netzwerk-Fehler: ${error.message}`;
+                log(`Login Netzwerk-Fehler für ${username}: ${error.message}`);
+            }
+        }
+
+        function startContinuousTest() {
+            if (continuousTestInterval) {
+                stopContinuousTest();
+            }
+            
+            testStartTime = new Date();
+            log('Kontinuierlicher Test gestartet - Überprüfung alle 30 Sekunden');
+            
+            // Erste Überprüfung sofort
+            listAllUsers();
+            
+            continuousTestInterval = setInterval(() => {
+                const elapsed = Math.round((new Date() - testStartTime) / 1000);
+                document.getElementById('continuousResult').textContent = `🔄 Test läuft seit ${elapsed} Sekunden - Überprüfe Benutzer...`;
+                listAllUsers();
+            }, 30000);
+            
+            document.getElementById('continuousResult').className = 'status success';
+            document.getElementById('continuousResult').textContent = '🔄 Kontinuierlicher Test gestartet';
+        }
+
+        function stopContinuousTest() {
+            if (continuousTestInterval) {
+                clearInterval(continuousTestInterval);
+                continuousTestInterval = null;
+                
+                const elapsed = Math.round((new Date() - testStartTime) / 1000);
+                document.getElementById('continuousResult').className = 'status info';
+                document.getElementById('continuousResult').textContent = `⏹️ Test gestoppt nach ${elapsed} Sekunden`;
+                log(`Kontinuierlicher Test gestoppt nach ${elapsed} Sekunden`);
+            }
+        }
+
+        // Automatische Server-Status-Prüfung beim Laden
+        window.onload = function() {
+            log('Browser-Persistenz-Test gestartet');
+            checkServerStatus();
+            listAllUsers();
+        };
+
+        // Test beim Schließen stoppen
+        window.onbeforeunload = function() {
+            stopContinuousTest();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Whispergram Browser Test</title>
+    <style>
+        body { font-family: Arial; margin: 20px; background: #1a1a1a; color: white; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .user-box { border: 1px solid #333; padding: 20px; margin: 10px 0; background: #2a2a2a; }
+        .messages { height: 200px; overflow-y: auto; border: 1px solid #444; padding: 10px; background: #222; }
+        button { padding: 10px; margin: 5px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+        input { padding: 10px; margin: 5px; background: #333; color: white; border: 1px solid #555; }
+        .status { padding: 5px; background: #444; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Whispergram Real Browser Test</h1>
+        <p>Test des Chat-Systems mit zwei Browser-Instanzen</p>
+        
+        <div class="user-box">
+            <h2>User 1 - DemoUser1</h2>
+            <div class="status" id="status1">Status: Getrennt</div>
+            <button onclick="connectUser1()">Als DemoUser1 verbinden</button>
+            <button onclick="sendMessage1()">Nachricht senden</button>
+            <input type="text" id="input1" placeholder="Nachricht eingeben..." value="Hallo von User1!">
+            <div class="messages" id="messages1">
+                <div>Nachrichten von User1...</div>
+            </div>
+        </div>
+        
+        <div class="user-box">
+            <h2>User 2 - DemoUser2</h2>
+            <div class="status" id="status2">Status: Getrennt</div>
+            <button onclick="connectUser2()">Als DemoUser2 verbinden</button>
+            <button onclick="sendMessage2()">Nachricht senden</button>
+            <input type="text" id="input2" placeholder="Nachricht eingeben..." value="Hallo von User2!">
+            <div class="messages" id="messages2">
+                <div>Nachrichten von User2...</div>
+            </div>
+        </div>
+        
+        <div class="user-box">
+            <h2>Test Log</h2>
+            <div class="messages" id="testlog">
+                <div>Test startet...</div>
+            </div>
+            <button onclick="runFullTest()">🚀 Vollständigen Test ausführen</button>
+        </div>
+    </div>
+
+    <script>
+        let ws1, ws2;
+        let user1Connected = false, user2Connected = false;
+        
+        function log(message) {
+            const testlog = document.getElementById('testlog');
+            testlog.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+            testlog.scrollTop = testlog.scrollHeight;
+        }
+        
+        function updateStatus(userId, status) {
+            document.getElementById('status' + userId).textContent = 'Status: ' + status;
+        }
+        
+        function addMessage(userId, message) {
+            const messages = document.getElementById('messages' + userId);
+            messages.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+            messages.scrollTop = messages.scrollHeight;
+        }
+        
+        function connectUser1() {
+            ws1 = new WebSocket('ws://localhost:5000/ws');
+            
+            ws1.onopen = () => {
+                log('✅ User1 WebSocket verbunden');
+                updateStatus(1, 'Verbunden');
+                ws1.send(JSON.stringify({ type: 'join', userId: 1 }));
+                user1Connected = true;
+            };
+            
+            ws1.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                log('📥 User1 empfing: ' + data.type);
+                
+                if (data.type === 'new_message' && data.message) {
+                    addMessage(1, 'Empfangen: ' + data.message.content);
+                    log('🎉 SUCCESS: User1 empfing Nachricht von User2!');
+                }
+            };
+            
+            ws1.onclose = () => {
+                log('🔌 User1 WebSocket getrennt');
+                updateStatus(1, 'Getrennt');
+                user1Connected = false;
+            };
+        }
+        
+        function connectUser2() {
+            ws2 = new WebSocket('ws://localhost:5000/ws');
+            
+            ws2.onopen = () => {
+                log('✅ User2 WebSocket verbunden');
+                updateStatus(2, 'Verbunden');
+                ws2.send(JSON.stringify({ type: 'join', userId: 2 }));
+                user2Connected = true;
+            };
+            
+            ws2.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                log('📥 User2 empfing: ' + data.type);
+                
+                if (data.type === 'new_message' && data.message) {
+                    addMessage(2, 'Empfangen: ' + data.message.content);
+                    log('🎉 SUCCESS: User2 empfing Nachricht von User1!');
+                }
+            };
+            
+            ws2.onclose = () => {
+                log('🔌 User2 WebSocket getrennt');
+                updateStatus(2, 'Getrennt');
+                user2Connected = false;
+            };
+        }
+        
+        function sendMessage1() {
+            if (!user1Connected) {
+                log('❌ User1 nicht verbunden');
+                return;
+            }
+            
+            const content = document.getElementById('input1').value;
+            const message = {
+                type: 'message',
+                chatId: 1,
+                senderId: 1,
+                receiverId: 2,
+                content: content,
+                messageType: 'text',
+                destructTimer: 3600
+            };
+            
+            ws1.send(JSON.stringify(message));
+            addMessage(1, 'Gesendet: ' + content);
+            log('📤 User1 sendete Nachricht');
+        }
+        
+        function sendMessage2() {
+            if (!user2Connected) {
+                log('❌ User2 nicht verbunden');
+                return;
+            }
+            
+            const content = document.getElementById('input2').value;
+            const message = {
+                type: 'message',
+                chatId: 1,
+                senderId: 2,
+                receiverId: 1,
+                content: content,
+                messageType: 'text',
+                destructTimer: 3600
+            };
+            
+            ws2.send(JSON.stringify(message));
+            addMessage(2, 'Gesendet: ' + content);
+            log('📤 User2 sendete Nachricht');
+        }
+        
+        function runFullTest() {
+            log('🧪 Starte vollständigen Test...');
+            
+            // 1. Beide Benutzer verbinden
+            connectUser1();
+            connectUser2();
+            
+            // 2. Nach kurzer Pause Nachricht senden
+            setTimeout(() => {
+                if (user1Connected && user2Connected) {
+                    log('📤 Sende Test-Nachricht von User1 zu User2');
+                    sendMessage1();
+                } else {
+                    log('❌ Nicht alle Benutzer sind verbunden');
+                }
+            }, 2000);
+            
+            // 3. Antwort senden
+            setTimeout(() => {
+                if (user1Connected && user2Connected) {
+                    log('📤 Sende Antwort von User2 zu User1');
+                    sendMessage2();
+                } else {
+                    log('❌ Nicht alle Benutzer sind verbunden');
+                }
+            }, 4000);
+        }
+        
+        log('Browser-Test bereit. Klicken Sie auf "Vollständigen Test ausführen"');
+    </script>
+</body>
+</html>

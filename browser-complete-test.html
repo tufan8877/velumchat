@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whispergram Complete Browser Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #0f0f23;
+            color: #00ff00;
+        }
+        .test-section {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .success { background: #0d4f0d; border-left: 4px solid #00ff00; }
+        .error { background: #4f0d0d; border-left: 4px solid #ff0000; }
+        .info { background: #0d0d4f; border-left: 4px solid #0099ff; }
+        .warning { background: #4f4f0d; border-left: 4px solid #ffaa00; }
+        button {
+            background: #00aa00;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover { background: #00cc00; }
+        button:disabled { background: #666; cursor: not-allowed; }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .tab {
+            background: #333;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .tab.active { border-color: #00ff00; }
+        #results {
+            max-height: 400px;
+            overflow-y: auto;
+            background: #000;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .status-card {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-pass { background: #00ff00; }
+        .status-fail { background: #ff0000; }
+        .status-pending { background: #ffaa00; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Whispergram Complete System Test</h1>
+    <p>Vollständiger Browser-Test aller Funktionen vor Deployment</p>
+
+    <div class="tabs">
+        <div class="tab active" onclick="showTab('overview')">Übersicht</div>
+        <div class="tab" onclick="showTab('backend')">Backend Tests</div>
+        <div class="tab" onclick="showTab('websocket')">WebSocket Tests</div>
+        <div class="tab" onclick="showTab('frontend')">Frontend Tests</div>
+    </div>
+
+    <div id="overview" class="test-section">
+        <h2>🎯 System Status Übersicht</h2>
+        <div class="status-grid">
+            <div class="status-card">
+                <h3>Backend API</h3>
+                <div id="backend-status">
+                    <span class="status-indicator status-pending"></span>Wird getestet...
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>WebSocket Real-time</h3>
+                <div id="websocket-status">
+                    <span class="status-indicator status-pending"></span>Wird getestet...
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>Badge System</h3>
+                <div id="badge-status">
+                    <span class="status-indicator status-pending"></span>Wird getestet...
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>Database Persistence</h3>
+                <div id="database-status">
+                    <span class="status-indicator status-pending"></span>Wird getestet...
+                </div>
+            </div>
+        </div>
+        
+        <button onclick="runAllTests()" id="runAllBtn">🚀 Alle Tests Starten</button>
+        <button onclick="clearResults()">🧹 Ergebnisse Löschen</button>
+        
+        <div id="overall-result" style="margin-top: 20px;"></div>
+    </div>
+
+    <div id="backend" class="test-section" style="display: none;">
+        <h2>🔧 Backend API Tests</h2>
+        <button onclick="testBackendAPI()">Test Backend API</button>
+        <button onclick="testUserSearch()">Test User Search</button>
+        <button onclick="testChatCreation()">Test Chat Creation</button>
+        <button onclick="testMessageSending()">Test Message Sending</button>
+    </div>
+
+    <div id="websocket" class="test-section" style="display: none;">
+        <h2>📡 WebSocket Real-time Tests</h2>
+        <button onclick="testWebSocketConnection()">Test WebSocket Connection</button>
+        <button onclick="testRealTimeMessaging()">Test Real-time Messaging</button>
+        <button onclick="testWebSocketReconnection()">Test Reconnection</button>
+    </div>
+
+    <div id="frontend" class="test-section" style="display: none;">
+        <h2>🎨 Frontend UI Tests</h2>
+        <button onclick="testFrontendAccess()">Test Frontend Access</button>
+        <button onclick="testLoginPage()">Test Login Page</button>
+        <button onclick="testChatInterface()">Test Chat Interface</button>
+        <button onclick="testBadgeDisplay()">Test Badge Display</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        let testResults = [];
+        let wsConnection = null;
+        
+        function showTab(tabName) {
+            // Hide all sections
+            ['overview', 'backend', 'websocket', 'frontend'].forEach(id => {
+                document.getElementById(id).style.display = 'none';
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected section and mark tab as active
+            document.getElementById(tabName).style.display = 'block';
+            event.target.classList.add('active');
+        }
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const result = { timestamp, message, type };
+            testResults.push(result);
+            
+            const resultElement = document.createElement('div');
+            resultElement.className = `test-result ${type}`;
+            resultElement.textContent = `[${timestamp}] ${message}`;
+            
+            document.getElementById('results').appendChild(resultElement);
+            document.getElementById('results').scrollTop = document.getElementById('results').scrollHeight;
+        }
+
+        function updateStatus(component, status, message) {
+            const statusElement = document.getElementById(`${component}-status`);
+            const indicator = statusElement.querySelector('.status-indicator');
+            
+            if (status === 'pass') {
+                indicator.className = 'status-indicator status-pass';
+                statusElement.innerHTML = `<span class="status-indicator status-pass"></span>✅ ${message}`;
+            } else if (status === 'fail') {
+                indicator.className = 'status-indicator status-fail';
+                statusElement.innerHTML = `<span class="status-indicator status-fail"></span>❌ ${message}`;
+            } else {
+                indicator.className = 'status-indicator status-pending';
+                statusElement.innerHTML = `<span class="status-indicator status-pending"></span>⏳ ${message}`;
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            testResults = [];
+        }
+
+        async function testBackendAPI() {
+            log('🔧 Testing Backend API...', 'info');
+            
+            try {
+                const response = await fetch('/api/search-users?q=test&exclude=1');
+                if (response.ok) {
+                    log('✅ Backend API is accessible', 'success');
+                    updateStatus('backend', 'pass', 'API funktioniert');
+                    return true;
+                } else {
+                    log(`❌ Backend API error: ${response.status}`, 'error');
+                    updateStatus('backend', 'fail', `HTTP ${response.status}`);
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Backend API failed: ${error.message}`, 'error');
+                updateStatus('backend', 'fail', 'Nicht erreichbar');
+                return false;
+            }
+        }
+
+        async function testUserSearch() {
+            log('👥 Testing User Search...', 'info');
+            
+            try {
+                const response = await fetch('/api/search-users?q=id2&exclude=6');
+                if (response.ok) {
+                    const users = await response.json();
+                    if (users.length > 0) {
+                        log(`✅ User search works: Found ${users.length} users`, 'success');
+                        return true;
+                    } else {
+                        log('⚠️ User search returns no results', 'warning');
+                        return false;
+                    }
+                } else {
+                    log(`❌ User search failed: ${response.status}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ User search error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testChatCreation() {
+            log('💬 Testing Chat Creation...', 'info');
+            
+            try {
+                const response = await fetch('/api/chats', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ participant1Id: 6, participant2Id: 7 })
+                });
+                
+                if (response.ok) {
+                    const chat = await response.json();
+                    log(`✅ Chat creation works: Chat ID ${chat.id}`, 'success');
+                    return chat.id;
+                } else {
+                    log(`❌ Chat creation failed: ${response.status}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Chat creation error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testMessageSending() {
+            log('📤 Testing Message Sending...', 'info');
+            
+            try {
+                const testMessage = `Browser Test ${Date.now()}`;
+                const response = await fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chatId: 3,
+                        senderId: 6,
+                        receiverId: 7,
+                        content: testMessage,
+                        messageType: 'text'
+                    })
+                });
+                
+                if (response.ok) {
+                    const message = await response.json();
+                    log(`✅ Message sending works: ID ${message.id}`, 'success');
+                    return message.id;
+                } else {
+                    log(`❌ Message sending failed: ${response.status}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Message sending error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testWebSocketConnection() {
+            log('📡 Testing WebSocket Connection...', 'info');
+            
+            return new Promise((resolve) => {
+                try {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${protocol}//${window.location.host}/ws`;
+                    
+                    wsConnection = new WebSocket(wsUrl);
+                    
+                    const timeout = setTimeout(() => {
+                        log('❌ WebSocket connection timeout', 'error');
+                        updateStatus('websocket', 'fail', 'Connection timeout');
+                        resolve(false);
+                    }, 5000);
+                    
+                    wsConnection.onopen = () => {
+                        clearTimeout(timeout);
+                        log('✅ WebSocket connection established', 'success');
+                        updateStatus('websocket', 'pass', 'Verbindung aktiv');
+                        resolve(true);
+                    };
+                    
+                    wsConnection.onerror = (error) => {
+                        clearTimeout(timeout);
+                        log(`❌ WebSocket error: ${error}`, 'error');
+                        updateStatus('websocket', 'fail', 'Verbindungsfehler');
+                        resolve(false);
+                    };
+                    
+                } catch (error) {
+                    log(`❌ WebSocket creation failed: ${error.message}`, 'error');
+                    updateStatus('websocket', 'fail', 'Nicht verfügbar');
+                    resolve(false);
+                }
+            });
+        }
+
+        async function testRealTimeMessaging() {
+            log('⚡ Testing Real-time Messaging...', 'info');
+            
+            if (!wsConnection || wsConnection.readyState !== WebSocket.OPEN) {
+                log('❌ WebSocket not connected for real-time test', 'error');
+                return false;
+            }
+            
+            return new Promise((resolve) => {
+                let messageReceived = false;
+                
+                // Listen for incoming messages
+                wsConnection.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'new_message') {
+                        messageReceived = true;
+                        log(`✅ Real-time message received: "${data.message.content}"`, 'success');
+                        resolve(true);
+                    }
+                };
+                
+                // Send a test message after a short delay
+                setTimeout(async () => {
+                    try {
+                        const testMessage = `Real-time Test ${Date.now()}`;
+                        const response = await fetch('/api/messages', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                chatId: 3,
+                                senderId: 6,
+                                receiverId: 7,
+                                content: testMessage,
+                                messageType: 'text'
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            log(`📤 Test message sent: "${testMessage}"`, 'info');
+                            
+                            // Wait for WebSocket delivery
+                            setTimeout(() => {
+                                if (!messageReceived) {
+                                    log('❌ Real-time message not received via WebSocket', 'error');
+                                    resolve(false);
+                                }
+                            }, 3000);
+                        } else {
+                            log('❌ Failed to send test message', 'error');
+                            resolve(false);
+                        }
+                    } catch (error) {
+                        log(`❌ Real-time test error: ${error.message}`, 'error');
+                        resolve(false);
+                    }
+                }, 1000);
+            });
+        }
+
+        async function testBadgeDisplay() {
+            log('📊 Testing Badge System...', 'info');
+            
+            try {
+                // Check id2's chats for unread count
+                const response = await fetch('/api/chats/7');
+                if (response.ok) {
+                    const chats = await response.json();
+                    const chat = chats.find(c => c.id === 3);
+                    
+                    if (chat) {
+                        const unreadCount = chat.unreadCount;
+                        log(`📋 Chat found: unreadCount = ${unreadCount}`, 'info');
+                        
+                        if (unreadCount > 0) {
+                            log(`✅ Badge system works: ${unreadCount} unread messages`, 'success');
+                            updateStatus('badge', 'pass', `${unreadCount} ungelesene`);
+                            return true;
+                        } else {
+                            log('⚠️ No unread messages found', 'warning');
+                            updateStatus('badge', 'fail', 'Keine ungelesenen');
+                            return false;
+                        }
+                    } else {
+                        log('❌ Test chat not found', 'error');
+                        updateStatus('badge', 'fail', 'Chat nicht gefunden');
+                        return false;
+                    }
+                } else {
+                    log(`❌ Failed to get chats: ${response.status}`, 'error');
+                    updateStatus('badge', 'fail', 'API Fehler');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Badge test error: ${error.message}`, 'error');
+                updateStatus('badge', 'fail', 'Fehler');
+                return false;
+            }
+        }
+
+        async function testFrontendAccess() {
+            log('🎨 Testing Frontend Access...', 'info');
+            
+            try {
+                const response = await fetch('/');
+                if (response.ok) {
+                    log('✅ Frontend is accessible', 'success');
+                    return true;
+                } else {
+                    log(`❌ Frontend access failed: ${response.status}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Frontend access error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testDatabasePersistence() {
+            log('💾 Testing Database Persistence...', 'info');
+            
+            try {
+                // Get messages to verify persistence
+                const response = await fetch('/api/chats/3/messages?userId=7');
+                if (response.ok) {
+                    const messages = await response.json();
+                    log(`✅ Database persistence works: ${messages.length} messages stored`, 'success');
+                    updateStatus('database', 'pass', `${messages.length} Nachrichten`);
+                    return true;
+                } else {
+                    log(`❌ Database test failed: ${response.status}`, 'error');
+                    updateStatus('database', 'fail', 'Zugriff fehlgeschlagen');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Database test error: ${error.message}`, 'error');
+                updateStatus('database', 'fail', 'Fehler');
+                return false;
+            }
+        }
+
+        async function runAllTests() {
+            const runButton = document.getElementById('runAllBtn');
+            runButton.disabled = true;
+            runButton.textContent = '⏳ Tests laufen...';
+            
+            clearResults();
+            log('🚀 Starting Complete System Test Suite', 'info');
+            log('=' + '='.repeat(50), 'info');
+            
+            const tests = [
+                { name: 'Backend API', fn: testBackendAPI },
+                { name: 'User Search', fn: testUserSearch },
+                { name: 'Chat Creation', fn: testChatCreation },
+                { name: 'Message Sending', fn: testMessageSending },
+                { name: 'WebSocket Connection', fn: testWebSocketConnection },
+                { name: 'Real-time Messaging', fn: testRealTimeMessaging },
+                { name: 'Badge System', fn: testBadgeDisplay },
+                { name: 'Database Persistence', fn: testDatabasePersistence },
+                { name: 'Frontend Access', fn: testFrontendAccess }
+            ];
+            
+            let passed = 0;
+            let total = tests.length;
+            
+            for (const test of tests) {
+                log(`\n🔄 Running: ${test.name}`, 'info');
+                const result = await test.fn();
+                if (result) {
+                    passed++;
+                    log(`✅ ${test.name} PASSED`, 'success');
+                } else {
+                    log(`❌ ${test.name} FAILED`, 'error');
+                }
+                
+                // Small delay between tests
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            log('\n' + '=' + '='.repeat(50), 'info');
+            log(`🎯 TEST RESULTS: ${passed}/${total} PASSED (${Math.round(passed/total*100)}%)`, 'info');
+            
+            const overallResult = document.getElementById('overall-result');
+            if (passed === total) {
+                log('🎉 ALL TESTS PASSED - SYSTEM READY FOR DEPLOYMENT! 🎉', 'success');
+                overallResult.innerHTML = `
+                    <div class="test-result success">
+                        <h3>🎉 DEPLOYMENT BEREIT!</h3>
+                        <p>Alle ${total} Tests bestanden. Das System ist vollständig funktionsfähig.</p>
+                        <ul>
+                            <li>✅ Backend API funktioniert</li>
+                            <li>✅ WebSocket Real-time funktioniert</li>
+                            <li>✅ Badge System funktioniert</li>
+                            <li>✅ Database Persistence funktioniert</li>
+                            <li>✅ Frontend funktioniert</li>
+                        </ul>
+                        <p><strong>Sie können jetzt Deploy klicken!</strong></p>
+                    </div>
+                `;
+            } else {
+                log(`❌ ${total - passed} TESTS FAILED - FIX REQUIRED BEFORE DEPLOYMENT`, 'error');
+                overallResult.innerHTML = `
+                    <div class="test-result error">
+                        <h3>❌ PROBLEME GEFUNDEN</h3>
+                        <p>${total - passed} von ${total} Tests fehlgeschlagen. Reparatur erforderlich.</p>
+                        <p>Bitte überprüfen Sie die fehlgeschlagenen Tests oben.</p>
+                    </div>
+                `;
+            }
+            
+            runButton.disabled = false;
+            runButton.textContent = '🚀 Alle Tests Starten';
+        }
+
+        // Auto-start tests when page loads
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 1000);
+        });
+    </script>
+</body>
+</html>

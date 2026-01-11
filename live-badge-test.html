@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Badge Test - Whispergram</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #1a1a1a; color: white; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #333; border-radius: 8px; }
+        .api-result { background: #2a2a2a; padding: 10px; border-radius: 4px; font-family: monospace; }
+        .badge { background: #22c55e; color: white; padding: 4px 8px; border-radius: 50%; font-weight: bold; display: inline-block; min-width: 20px; text-align: center; }
+        .error { color: #ff4444; }
+        .success { color: #44ff44; }
+        .test-result { margin: 10px 0; padding: 10px; border-left: 3px solid #22c55e; background: #1a2a1a; }
+    </style>
+</head>
+<body>
+    <h1>🧪 LIVE BADGE TEST - Whispergram</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Backend API für User 7 (id2)</h2>
+        <button onclick="testBackendAPI()">Backend API testen</button>
+        <div id="backend-result" class="api-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Frontend Badge Berechnung simulieren</h2>
+        <button onclick="testBadgeCalculation()">Badge Berechnung testen</button>
+        <div id="badge-result" class="api-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: Echte Badge Anzeige</h2>
+        <p>Wenn unreadCount > 0:</p>
+        <div id="live-badge"></div>
+    </div>
+
+    <script>
+        async function testBackendAPI() {
+            const resultDiv = document.getElementById('backend-result');
+            resultDiv.innerHTML = 'Loading...';
+            
+            try {
+                const response = await fetch('/api/chats/7');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success">✅ Backend Response erfolgreich</div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+                // Extract unread counts
+                if (data && data.length > 0) {
+                    const chat = data[0];
+                    document.getElementById('unread-data').innerHTML = `
+                        participant1Id: ${chat.participant1Id}<br>
+                        participant2Id: ${chat.participant2Id}<br>
+                        unreadCount1: ${chat.unreadCount1}<br>
+                        unreadCount2: ${chat.unreadCount2}<br>
+                        unreadCount: ${chat.unreadCount}
+                    `;
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testBadgeCalculation() {
+            const resultDiv = document.getElementById('badge-result');
+            
+            try {
+                const response = await fetch('/api/chats/7');
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    const chat = data[0];
+                    const userId = 7; // id2
+                    
+                    // EXACT SAME LOGIC as Frontend
+                    let unreadCount = 0;
+                    if (userId === chat.participant1Id) {
+                        unreadCount = chat.unreadCount1 || 0;
+                    } else if (userId === chat.participant2Id) {
+                        unreadCount = chat.unreadCount2 || 0;  
+                    }
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">🔥 Badge Berechnung:</div>
+                        userId: ${userId}<br>
+                        participant1Id: ${chat.participant1Id}<br>
+                        participant2Id: ${chat.participant2Id}<br>
+                        unreadCount1: ${chat.unreadCount1}<br>
+                        unreadCount2: ${chat.unreadCount2}<br>
+                        <strong>Berechnetes unreadCount: ${unreadCount}</strong><br>
+                        <div style="margin-top: 10px;">
+                            ${unreadCount > 0 ? `<span class="badge">${unreadCount}</span> ← Badge würde angezeigt` : 'Kein Badge (unreadCount = 0)'}
+                        </div>
+                    `;
+                    
+                    // Show live badge
+                    const liveBadge = document.getElementById('live-badge');
+                    if (unreadCount > 0) {
+                        liveBadge.innerHTML = `<span class="badge">${unreadCount}</span> Live Badge für id1-Chat`;
+                    } else {
+                        liveBadge.innerHTML = 'Kein Badge (unreadCount = 0)';
+                    }
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Auto-test on page load
+        window.onload = function() {
+            testBackendAPI();
+            setTimeout(testBadgeCalculation, 1000);
+        };
+    </script>
+    
+    <div class="test-section">
+        <h2>Backend Daten (automatisch geladen):</h2>
+        <div id="unread-data" class="api-result">Loading...</div>
+    </div>
+</body>
+</html>

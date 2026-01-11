@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live WebSocket Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f0f0f0; padding: 10px; margin: 10px 0; border-left: 3px solid #007bff; }
+        .error { border-left-color: #dc3545; background: #f8d7da; }
+        .success { border-left-color: #28a745; background: #d4edda; }
+    </style>
+</head>
+<body>
+    <h1>Live WebSocket Connection Test</h1>
+    <button onclick="testConnection()">Test WebSocket Connection</button>
+    <div id="results"></div>
+
+    <script>
+        let logCount = 0;
+        
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = 'log ' + (type === 'error' ? 'error' : type === 'success' ? 'success' : '');
+            div.innerHTML = `[${++logCount}] ${new Date().toLocaleTimeString()}: ${message}`;
+            results.appendChild(div);
+            console.log(message);
+        }
+        
+        function testConnection() {
+            document.getElementById('results').innerHTML = '';
+            logCount = 0;
+            
+            log('Starting WebSocket connection test...');
+            
+            const ws = new WebSocket('ws://localhost:5000/ws');
+            
+            const timeout = setTimeout(() => {
+                log('Connection timeout after 5 seconds', 'error');
+                ws.close();
+            }, 5000);
+            
+            ws.onopen = function() {
+                clearTimeout(timeout);
+                log('WebSocket connection successful!', 'success');
+                
+                // Test join message
+                const joinMsg = { type: 'join', userId: 999 };
+                log('Sending join message: ' + JSON.stringify(joinMsg));
+                ws.send(JSON.stringify(joinMsg));
+                
+                // Test chat message
+                setTimeout(() => {
+                    const chatMsg = {
+                        type: 'message',
+                        chatId: 1,
+                        senderId: 999,
+                        receiverId: 1,
+                        content: 'Test message from browser',
+                        messageType: 'text',
+                        destructTimer: 10
+                    };
+                    log('Sending chat message: ' + JSON.stringify(chatMsg));
+                    ws.send(JSON.stringify(chatMsg));
+                }, 1000);
+            };
+            
+            ws.onmessage = function(event) {
+                log('Received message: ' + event.data, 'success');
+            };
+            
+            ws.onerror = function(event) {
+                clearTimeout(timeout);
+                log('WebSocket error occurred: ' + JSON.stringify(event), 'error');
+            };
+            
+            ws.onclose = function(event) {
+                clearTimeout(timeout);
+                log('WebSocket closed. Code: ' + event.code + ', Reason: ' + event.reason, 'error');
+            };
+        }
+        
+        // Auto-run test when page loads
+        window.onload = function() {
+            setTimeout(testConnection, 1000);
+        };
+    </script>
+</body>
+</html>

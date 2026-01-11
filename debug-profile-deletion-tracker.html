@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PROFILE DELETION TRACKER</title>
+    <style>
+        body { font-family: monospace; background: #000; color: #0f0; padding: 20px; }
+        .critical { color: #f00; font-weight: bold; }
+        .success { color: #0f0; }
+        .warning { color: #ff0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 PROFILE DELETION TRACKER - CATCHING THE CULPRIT</h1>
+    <div id="log"></div>
+    
+    <script>
+        const log = document.getElementById('log');
+        
+        function addLog(message, type = 'normal') {
+            const p = document.createElement('p');
+            p.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            if (type === 'critical') p.className = 'critical';
+            if (type === 'success') p.className = 'success';
+            if (type === 'warning') p.className = 'warning';
+            log.appendChild(p);
+            console.log(message);
+        }
+        
+        // Override ALL localStorage methods to track what's happening
+        const originalSetItem = localStorage.setItem.bind(localStorage);
+        const originalGetItem = localStorage.getItem.bind(localStorage);
+        const originalRemoveItem = localStorage.removeItem.bind(localStorage);
+        const originalClear = localStorage.clear.bind(localStorage);
+        
+        localStorage.setItem = function(key, value) {
+            addLog(`📝 localStorage.setItem("${key}", "${value.length > 50 ? value.substring(0,50) + '...' : value}")`, 'success');
+            if (key === 'user') {
+                addLog(`✅ USER PROFILE STORED: ${JSON.parse(value).username}`, 'success');
+            }
+            return originalSetItem(key, value);
+        };
+        
+        localStorage.getItem = function(key) {
+            const result = originalGetItem(key);
+            if (key === 'user') {
+                if (result) {
+                    const user = JSON.parse(result);
+                    addLog(`✅ USER PROFILE RETRIEVED: ${user.username}`, 'success');
+                } else {
+                    addLog(`💥 USER PROFILE IS NULL! Someone deleted it!`, 'critical');
+                }
+            }
+            return result;
+        };
+        
+        localStorage.removeItem = function(key) {
+            addLog(`🗑️ ATTEMPT TO REMOVE: "${key}"`, key === 'user' ? 'critical' : 'warning');
+            if (key === 'user') {
+                addLog(`🚨 CRITICAL: Someone is trying to delete user profile!`, 'critical');
+                addLog(`🚫 BLOCKED: User profile deletion prevented`, 'success');
+                return; // Block the deletion
+            }
+            return originalRemoveItem(key);
+        };
+        
+        localStorage.clear = function() {
+            addLog(`💥 ATTEMPT TO CLEAR ALL localStorage!`, 'critical');
+            const userData = originalGetItem('user');
+            originalClear();
+            if (userData) {
+                originalSetItem('user', userData);
+                addLog(`✅ User profile restored after clear attempt`, 'success');
+            }
+        };
+        
+        // Monitor for any changes to user profile
+        let lastUserData = localStorage.getItem('user');
+        setInterval(() => {
+            const currentUserData = originalGetItem('user');
+            if (lastUserData !== currentUserData) {
+                if (lastUserData && !currentUserData) {
+                    addLog(`💥 PROFILE DISAPPEARED! Last known: ${JSON.parse(lastUserData).username}`, 'critical');
+                    addLog(`🔍 Stack trace when profile disappeared:`, 'critical');
+                    console.trace();
+                } else if (!lastUserData && currentUserData) {
+                    addLog(`✅ Profile appeared: ${JSON.parse(currentUserData).username}`, 'success');
+                } else if (lastUserData && currentUserData) {
+                    addLog(`🔄 Profile changed`, 'warning');
+                }
+                lastUserData = currentUserData;
+            }
+        }, 500);
+        
+        // Test profile storage immediately
+        addLog('🧪 TESTING PROFILE STORAGE...', 'warning');
+        const testProfile = {
+            id: 99,
+            username: 'TestTracker',
+            publicKey: 'test-key',
+            privateKey: 'test-private'
+        };
+        
+        localStorage.setItem('user', JSON.stringify(testProfile));
+        setTimeout(() => {
+            const retrieved = localStorage.getItem('user');
+            if (retrieved) {
+                addLog('✅ Test profile survived 2 seconds', 'success');
+            } else {
+                addLog('💥 Test profile disappeared in 2 seconds!', 'critical');
+            }
+        }, 2000);
+        
+        addLog('🔍 Monitoring started - any profile deletion will be caught and logged', 'success');
+    </script>
+</body>
+</html>

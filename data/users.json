@@ -1,0 +1,125 @@
+{
+  "users": {
+    "1": {
+      "id": 1,
+      "username": "TestUser123",
+      "passwordHash": "7e6e0c3079a08c5cc6036789b57e951f65f82383913ba1a49ae992544f1b4b6e",
+      "publicKey": "test-public-key-data",
+      "isOnline": true,
+      "lastSeen": "2025-07-18T15:00:05.753Z"
+    },
+    "2": {
+      "id": 2,
+      "username": "Alice",
+      "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+      "publicKey": "alice-public-key",
+      "isOnline": true,
+      "lastSeen": "2025-07-19T15:53:09.445Z"
+    },
+    "3": {
+      "id": 3,
+      "username": "Bob",
+      "passwordHash": "8d059c3640b97180dd2ee453e20d34ab0cb0f2eccbe87d01915a8e578a202b11",
+      "publicKey": "bob-public-key",
+      "isOnline": true,
+      "lastSeen": "2025-07-18T15:00:07.304Z"
+    },
+    "4": {
+      "id": 4,
+      "username": "Anton",
+      "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+      "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmJ0JglX9qh56qD8H/zURpzOniXrC10eHseBY1F5KlDSmXckLneykMUy3uZ7LyzPDW04Sgb4dwcXU+MS9+RdNfK33jRIj/jpc0Tgaj1CvYeb2qiHEIjj1Q/UycenI8NhuNyTFar8z1shuhid2w1hdZtGMOKVpbihW467OTF5Ot94uncVPGrzotlwHD0oh8jgjkJUF72jm78KOwoZcMGK74DECnNijNXY3Ug+9t84mtKVXECiw4PWLtraaVo3iG52H2ttnzwdo7sG2oMs1KkYPpqQgxGKH5IFdc2HqXK5La4CsY+h+ekidjIQKU5ixu8e7j/6DufDi26kgnsUI/DC94QIDAQAB",
+      "isOnline": false,
+      "lastSeen": "2025-07-18T15:53:12.395Z"
+    },
+    "5": {
+      "id": 5,
+      "username": "sniper",
+      "passwordHash": "c110a53b320ea4508075d0d99df9b069a28b5d810b0dd2df77b4c359f9878f2b",
+      "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5D41HNZh/rFFjxFNGUvXJHqkCaYUFlHzqrh2urrL4ZuFc1TkwX2w5QT8aE83tF5aKjI79cFGeUqHPFs/9YVoZ1MAEGnJbFgMvFSDsCzAgJjdiLWyiKHn23oOzdNGGkue93QIvKFlaTimlHkuIN7pwVFD26EK/Xe62hp8B/DdXg+KUxlcp6EDzgfA8AJq2GYqXPhxW/UXuxqQPgCM5gIviNMs32Q30OJj1b0sC7Lu2K6XfuXoUGeYDYEsOdSAUISCv4r9vwJeBLS7rfjA9LskujxBNYULfg7ZYbKwPS11IdPqOZi96amDHGegJZR0357iBPN3sNHOvB4sSwMPIBDKqwIDAQAB",
+      "isOnline": false,
+      "lastSeen": "2025-07-19T08:35:38.936Z"
+    },
+    "6": {
+      "id": 6,
+      "username": "anton1",
+      "passwordHash": "c110a53b320ea4508075d0d99df9b069a28b5d810b0dd2df77b4c359f9878f2b",
+      "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxlDCjZrE0nGzIsfYFmFd96RuT4M0frK4lYgOFhNth0XyJXnOtiGE7vBrUl7i38yy0Fdu7bEwnJie7jnJFF5Yqp04J1I/vsEY8TCqS8Cf0degoMvw5GRT+uXUYwyzgIawCj9Zc+unuzolVtO/a5+RFoo55NYSGU2Bv4xAVaAa/34oqMwTg3wmptuKCoX+1Mk/B4b3Q8Xq7ra4dVeiPAtByC+5Y5LZc+gAslkxkMVLliHVJCyD1y0qNSnAEjNlc/Cf0/Q3BqupJPb7Al+gUncXETI+r7Bc+BM8L8qfqaxHHOjQSOnG3CLDGs77Lg6EEr8p6eoplNfGmlF3PtFnwqA0xwIDAQAB",
+      "isOnline": true,
+      "lastSeen": "2025-07-19T08:36:48.133Z"
+    },
+    "7": {
+      "id": 7,
+      "username": "Tuffa",
+      "passwordHash": "c201160023ea16284e9123986016e65db0d2436c4379166e590a46164a3c6b2c",
+      "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2U183HR6Rm/JtK06Qrreya0TeXr7ByaJiZQAyNAbJ9XU085Xstx8BRo+6IGctwjgH3SkONgMcfp2rGdhx9KZHHOPhcacxVKYLH/d44WcP+sDdfNWEfiTL9W41euhwfpK+V+pCxkQugYv2x/KOBMVpR3aHu7YbesXsfCNi9w3mplqbcIeOjI8Fei0e0g9/fRY5JDAr6LoqQdBbhv0mSqErGzXjcBbLElCxyviQpJPf86FpOIx3FORXNuFvk4cQ6qRf7VPVpaobrA52dlIxyG4eJZ+e5qkmcbACCIr48OfFm9UQcIIomuIq1tjdmCWYsoo3xnx2ZABAPmCZf5wMGNkUQIDAQAB",
+      "isOnline": false,
+      "lastSeen": "2025-11-04T17:29:31.942Z"
+    },
+    "8": {
+      "id": 8,
+      "username": "ID1",
+      "passwordHash": "c201160023ea16284e9123986016e65db0d2436c4379166e590a46164a3c6b2c",
+      "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtqasL+gLKrCfUbdWI6l/ZIGsCMX7pY0NX8L7ld4FfGBYXPP/1919wfRf5gWRb5B0sDKrGc0W9SVxlYyfqvONZ6DTOnr2NWjUOP/F0NviAnGXbjEUsY8yuSj1rHWFvoQyu8AewG+lqjueSSkqdpEUHhQgDN0ZGPVwwJVvE4FpEQ67GHWBi13T5eCpwv7lqw//d/SEYaAlMhkhgkIy3V+vkKljr4jTsECfrflFwhbBNWGcb2JuHhEzzpo/uqdSvVhEpSD2cgTz+QtFNUUVZPp7Qki04SfLHqCJ5nkLXHn6OJs3D4c+XDg0bGQ/FMqgs0Q+wu6nKx4yzD4hLfRlWzrNcQIDAQAB",
+      "isOnline": false,
+      "lastSeen": "2025-11-05T15:03:50.310Z"
+    },
+    "9": {
+      "id": 9,
+      "username": "ID2",
+      "passwordHash": "cd5716adbc3ca3b152d660674cca431970dc418122f3da113194ea9fb7802bcf",
+      "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs/E05j0SVXD6dO87uFjCW4c0w34lVTN69B9K/qc2UMTtyOETGZ9VgPtqM9Iqq8fCDMiyUIf3pRLpyJs8biPHjqqyqmSy8/FSlVg+y5tExIUWFyhjFWcaNF0++7SOhZNUHXayPt7AR7NO95QnkZMKPKMAFN+EyTuWrpUEAzh26wZBhMjcHFT8qvejai8npnVNn4hqRe3K9dHuiqXEnNwQOVOSyUIAYRmkXkKR2ubMhYuEM0MuYBjaO0VicxTGPTOjvzN8vokcP9V7IpI+qkTZiIeobaYiyVpGHArNjG+W6HR7xWEp9HPf24gL+VRvGc0hWVz8U9fQ4acNrJZLuKPgYQIDAQAB",
+      "isOnline": false,
+      "lastSeen": "2025-11-04T17:44:45.096Z"
+    },
+    "10": {
+      "id": 10,
+      "username": "Dyablo",
+      "passwordHash": "e7c3369de7123eb81f20d3d507094ba147f0eb77cedc13f54405018e795441f6",
+      "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAugnGFSsUypAyQtDTV9Zj2+nT22WVT6Nd9Ai/ZYsyymViBelbDvwTJ5++3Us59syZk8nSVBUrdhpf32kuzfPodL65IAiAX/Qbl+osuAJ7YaJlnZq6Rr5JMxtctao9HkXB0zIDs229QOfBEv2NHo9VpGkFVeORd434e9qHRLhFQb4gUq/mcK0bsb6xcpHptnVSy5LwH25ImXOeZm4L7H1KF3/CRP2WMNjpRMOvnYBCW/5g7eyT3tzpRLv8s83Aw0KO61Hz9DEApWx1tHqOQnZ5KCQkL56HmjWdX74NZYmag5+Q1YfCCHI2oqkZXOdXG8LSTO4CcJTdngJgYNlDdrAGcwIDAQAB",
+      "isOnline": false,
+      "lastSeen": "2025-11-04T17:55:21.765Z"
+    },
+    "11": {
+      "id": 11,
+      "username": "ID3",
+      "passwordHash": "c201160023ea16284e9123986016e65db0d2436c4379166e590a46164a3c6b2c",
+      "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqj6c/cgFZ+offziznwgZ2eLmjo7cPQ3IAh4YiUSmMxRElEym30LFfkuYwSjT4okQyEiwe+WnrUvBI9OFQOBke0AyWh65ACCp6ZdnOA3bQdyKSpjms40ZQcFBgdfYfnHf7Gu/UN4+QAWYDb96xIXgkVWbKYUiun4LUIWg6Em23TbL0EqYrsrRg/H/CPjZEnd90sUf1P6HLE9g1FloiE/YFNiWj3S8jZ2m82lnpnLd1/gsTFRGZcRCJplo46sLBItHRasN4cJW324Df0DxEbQO9KkrALWMeIFQ0KaL7rQdg1Kd2hjOeKBAqsmhfOIlv9DA1xxHlcLxW9Y34N+ss5mU8wIDAQAB",
+      "isOnline": false,
+      "lastSeen": "2025-11-04T18:44:44.393Z"
+    },
+    "12": {
+      "id": 12,
+      "username": "sniper1",
+      "passwordHash": "c201160023ea16284e9123986016e65db0d2436c4379166e590a46164a3c6b2c",
+      "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3X8i1Hv0To75EQixHK11UgydIrtCPeMBv+7N7Xxo7GTFn4GYrKfGHLedhwjKoG1hCvKmJ5t8EdC2sLFOP6cW4gp0dkz2QZMGPRLniQd6/KKuHbTRaYPSKFSBckRTmsiKJ30cpzjCkkw4dczkaDnDQbvsSLPulS6fWVydhT99rybPiKacU3pzMJt1f256FT34dr3tlcKJFS0Pft8VADloyyI0D7LK5RVRfEMHjHpwDYBoRfQ4VNYot8lFd29xkXxyPYIAK7OOa+KeD3mdKin1JXe7DVoLfoxo1jEY0NWCnmobG6siGsNOj2QUYqF6HrI3hPbfV4rzFmAuDeVCpodAgQIDAQAB",
+      "isOnline": false,
+      "lastSeen": "2025-12-13T17:12:07.810Z"
+    },
+    "13": {
+      "id": 13,
+      "username": "ID 1",
+      "passwordHash": "c110a53b320ea4508075d0d99df9b069a28b5d810b0dd2df77b4c359f9878f2b",
+      "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwAIOOYqTpWOcyNnsOpSfoNUNEQfwXc/iGttraP5SjlFzxv3iO7Bc+PcbnajuvyiaYFk8O1epOE22E+8B5GnQ1SRmGOr0VvMYuxPzOYCG95pNGEHGqrQODgYPIWU7rWOafWe1pvAYX/hJ79EH1gle8r5A7dHm1VF7xESdN7eY6m40KyC6iOS7eBkMN9W1NInf27t3VfJpa0BeXAcsGG47uENZNgmnsZVKmjqs14xTTchmVYfy0N+hTVfJXNGdRbKKgpztl3rhPateAyacDDL30vyKB3J5BDTPKBa8DbCs6bhGIuAUXpviTgkOqHTws4W8MP1ZZSW9CMCm80BjB5NmrQIDAQAB",
+      "isOnline": false,
+      "lastSeen": "2025-11-04T19:21:33.641Z"
+    },
+    "14": {
+      "id": 14,
+      "username": "ID 3",
+      "passwordHash": "c201160023ea16284e9123986016e65db0d2436c4379166e590a46164a3c6b2c",
+      "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtwQWyLp/scNyjULHYcsOqzhZmPqA++C5S+7ibq7Nw2bkO8G1tEunAD/e52xOuofTZaFBjfNx4uicHTqBMDgJlA/HpCZZBnaVegCOWp3jrhFNiLzjsSWxVsLxWJFiwMIUhsPg5VRbp6IhBrs9x+FCJEtis9nqHMHWxePiDW2d+L74r86p+4klkG670q6tqWARef/uv7qpyg8bBVfdAR2DbhHAF6leaJAwWbAB2E0gek7wRveMrSq5BUvr3iBV/AIEWZdrY9QF0+YhonD2wFbbRn0yzgVxC9AtqsHDBlnTZ2KW2S9bO4JCB1IIsOFfCRpAZUQXJXl9h3VQceZPOjUTLwIDAQAB",
+      "isOnline": false,
+      "lastSeen": "2025-11-04T22:10:48.228Z"
+    },
+    "15": {
+      "id": 15,
+      "username": "Latt",
+      "passwordHash": "c201160023ea16284e9123986016e65db0d2436c4379166e590a46164a3c6b2c",
+      "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyVNXVy+FOYiO5eKboHUP6/qASxHs4mp9Xn1PuCSys9ulUGasyS6eNbxmwk6lMOeW04TlN1CMyOlKhlH62YlK3ujpQQ3Q9aaIfKGidgpcURqXeAH8/zTlGmD8aKgcWi8W/XYIN8LwekXXemUllAh+nF7xQM6EvMl+dJCymCSpNGf80kESsknbxYAFVLJojKKyuQf/dLXVROsizDmQ2ITSeplyD/9OoEkI3q2lXK5NTB6qpmqGLNchu+r2f6ScLg11WHFHNVbp0hYGO0mUDv3+250HtOHwEUhKfwgc+Q/UGAvawCOWag8No8Be8XqpH1rOJRW3yxYXSTa7ffXf3pXXSwIDAQAB",
+      "isOnline": false,
+      "lastSeen": "2025-12-13T17:12:11.048Z"
+    }
+  },
+  "userIdCounter": 16
+}

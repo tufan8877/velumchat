@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Debug - Badge Problem</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #000;
+            color: #00ff00;
+            padding: 20px;
+        }
+        .debug-panel {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .console-log {
+            background: #000;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        button {
+            background: #007700;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        iframe { width: 100%; height: 500px; border: 1px solid #444; }
+    </style>
+</head>
+<body>
+    <h1>🐛 Browser Badge Debug Tool</h1>
+    
+    <div class="debug-panel">
+        <h3>📊 Real-Time Backend Check</h3>
+        <button onclick="checkBackendNow()">Backend Sofort Prüfen</button>
+        <div id="backend-check" class="console-log">Waiting...</div>
+    </div>
+
+    <div class="debug-panel">
+        <h3>🎯 Frontend Login Test</h3>
+        <p><strong>Anweisungen:</strong></p>
+        <ol>
+            <li>Im iframe unten als <strong>id2 / test123</strong> einloggen</li>
+            <li>Nach Login: Browser-Konsole öffnen (F12 → Console)</li>
+            <li>Nach "🎯 BADGE RENDER" Logs suchen</li>
+            <li>Prüfen ob Badge-Element wirklich gerendert wird</li>
+        </ol>
+        <iframe src="/" id="test-iframe"></iframe>
+    </div>
+
+    <div class="debug-panel">
+        <h3>📱 Console Logs Monitor</h3>
+        <button onclick="startConsoleMonitor()">Console Monitor Starten</button>
+        <div id="console-monitor" class="console-log">Monitor nicht aktiv...</div>
+    </div>
+
+    <script>
+        let consoleMonitor = null;
+
+        async function checkBackendNow() {
+            const output = document.getElementById('backend-check');
+            output.textContent = 'Prüfe Backend API...\n';
+            
+            try {
+                // Check id2's chats
+                const response = await fetch('/api/chats/7');
+                if (response.ok) {
+                    const chats = await response.json();
+                    const testChat = chats.find(c => c.id === 3);
+                    
+                    output.textContent += `✅ API Response erhalten\n`;
+                    output.textContent += `📋 Total Chats für id2: ${chats.length}\n`;
+                    
+                    if (testChat) {
+                        output.textContent += `\n🎯 Test Chat (ID 3) Details:\n`;
+                        output.textContent += `   - Other User: ${testChat.otherUser.username}\n`;
+                        output.textContent += `   - Unread Count: ${testChat.unreadCount}\n`;
+                        output.textContent += `   - Last Message: "${testChat.lastMessage?.content}"\n`;
+                        output.textContent += `   - Created: ${testChat.createdAt}\n`;
+                        
+                        output.textContent += `\n🔥 ERWARTETE FRONTEND VERHALTEN:\n`;
+                        output.textContent += `   1. Login als id2/test123\n`;
+                        output.textContent += `   2. Chat "${testChat.otherUser.username}" sollte Badge "${testChat.unreadCount}" zeigen\n`;
+                        output.textContent += `   3. Badge sollte ROTE Farbe mit gelbem Rand haben\n`;
+                        output.textContent += `   4. Console sollte "🔥 FORCE BADGE FOR CHAT 3" zeigen\n`;
+                        
+                        if (testChat.unreadCount > 0) {
+                            output.textContent += `\n🎉 ✅ BACKEND DATEN KORREKT\n`;
+                            output.textContent += `✅ ${testChat.unreadCount} ungelesene Nachrichten vorhanden\n`;
+                            output.textContent += `🚨 WENN BADGE NICHT SICHTBAR → FRONTEND RENDER-PROBLEM\n`;
+                        } else {
+                            output.textContent += `\n⚠️ Keine ungelesenen Nachrichten\n`;
+                            output.textContent += `🔥 Aber erzwungene Test-Badge sollte trotzdem erscheinen\n`;
+                        }
+                    } else {
+                        output.textContent += `❌ Test Chat (ID 3) nicht gefunden\n`;
+                        output.textContent += `📋 Verfügbare Chats: ${chats.map(c => c.id).join(', ')}\n`;
+                    }
+                } else {
+                    output.textContent += `❌ API Fehler: ${response.status}\n`;
+                }
+            } catch (error) {
+                output.textContent += `❌ Fehler: ${error.message}\n`;
+            }
+        }
+
+        function startConsoleMonitor() {
+            const monitor = document.getElementById('console-monitor');
+            monitor.textContent = 'Console Monitor gestartet...\nÖffnen Sie die Browser-Konsole (F12) und loggen Sie sich ein!\n\n';
+            
+            // Simulate console log capture
+            const originalLog = console.log;
+            const originalError = console.error;
+            
+            console.log = function(...args) {
+                const timestamp = new Date().toLocaleTimeString();
+                monitor.textContent += `[${timestamp}] LOG: ${args.join(' ')}\n`;
+                monitor.scrollTop = monitor.scrollHeight;
+                originalLog.apply(console, args);
+            };
+            
+            console.error = function(...args) {
+                const timestamp = new Date().toLocaleTimeString();
+                monitor.textContent += `[${timestamp}] ERROR: ${args.join(' ')}\n`;
+                monitor.scrollTop = monitor.scrollHeight;
+                originalError.apply(console, args);
+            };
+            
+            monitor.textContent += 'Console wird überwacht...\nLoggen Sie sich als id2/test123 ein!\n\n';
+        }
+
+        // Auto-check backend every 10 seconds
+        setInterval(checkBackendNow, 10000);
+        
+        // Initial check
+        window.addEventListener('load', () => {
+            setTimeout(checkBackendNow, 1000);
+        });
+    </script>
+</body>
+</html>

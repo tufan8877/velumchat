@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Badge Debug Test</title>
+</head>
+<body>
+    <h1>Frontend Badge Debug</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function debugBadgeIssue() {
+            const results = document.getElementById('results');
+            
+            try {
+                // 1. Test Backend API direkt
+                console.log('🧪 Testing Backend API directly...');
+                const response = await fetch('/api/chats/7');
+                const data = await response.json();
+                
+                console.log('📊 Backend Response:', data);
+                results.innerHTML += `<p><strong>Backend API:</strong> ${JSON.stringify(data, null, 2)}</p>`;
+                
+                if (data && data.length > 0) {
+                    const chat = data[0];
+                    const unreadCount = chat.unreadCount2 || 0;
+                    
+                    results.innerHTML += `<p><strong>Backend unreadCount2:</strong> ${unreadCount}</p>`;
+                    console.log(`🔥 Backend zeigt unreadCount2: ${unreadCount}`);
+                    
+                    if (unreadCount > 1) {
+                        results.innerHTML += `<p style="color: green;">✅ Backend zählt korrekt (${unreadCount} > 1)</p>`;
+                    } else {
+                        results.innerHTML += `<p style="color: red;">❌ Backend zählt nicht (${unreadCount})</p>`;
+                    }
+                } else {
+                    results.innerHTML += `<p style="color: red;">❌ Keine Chat-Daten gefunden</p>`;
+                }
+                
+                // 2. Prüfe Frontend localStorage
+                console.log('🧪 Checking Frontend localStorage...');
+                const userSession = localStorage.getItem('userSession');
+                if (userSession) {
+                    const session = JSON.parse(userSession);
+                    results.innerHTML += `<p><strong>Frontend User:</strong> ${session.username} (ID: ${session.id})</p>`;
+                    console.log('👤 Frontend User:', session);
+                } else {
+                    results.innerHTML += `<p style="color: red;">❌ Kein User eingeloggt</p>`;
+                }
+                
+                // 3. Prüfe React Dev Tools (simuliert)
+                console.log('🧪 Simulating React State Check...');
+                results.innerHTML += `<p><strong>React State Check:</strong> Öffnen Sie die Browser Console für Details</p>`;
+                
+            } catch (error) {
+                console.error('❌ Debug Error:', error);
+                results.innerHTML += `<p style="color: red;">❌ Fehler: ${error.message}</p>`;
+            }
+        }
+        
+        // Sofort ausführen
+        debugBadgeIssue();
+        
+        // Alle 5 Sekunden wiederholen
+        setInterval(debugBadgeIssue, 5000);
+    </script>
+</body>
+</html>

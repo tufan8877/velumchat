@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Timer-System Test - Whispergram</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: #1a1a1a; 
+            color: #fff; 
+        }
+        .test-container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: #2d2d2d; 
+            padding: 20px; 
+            border-radius: 10px; 
+        }
+        .timer-test { 
+            margin: 15px 0; 
+            padding: 15px; 
+            background: #3d3d3d; 
+            border-radius: 8px; 
+            border-left: 4px solid #00ff88; 
+        }
+        .button { 
+            background: #00ff88; 
+            color: #000; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            margin: 5px; 
+        }
+        .button:hover { background: #00dd77; }
+        .log { 
+            background: #1d1d1d; 
+            padding: 10px; 
+            border-radius: 5px; 
+            font-family: monospace; 
+            font-size: 12px; 
+            max-height: 400px; 
+            overflow-y: auto; 
+            margin-top: 15px; 
+        }
+        .timer-option { 
+            display: inline-block; 
+            margin: 5px; 
+            padding: 8px 15px; 
+            background: #444; 
+            border-radius: 5px; 
+            cursor: pointer; 
+        }
+        .timer-option:hover { background: #555; }
+        .timer-option.selected { background: #00ff88; color: #000; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Timer-System Test</h1>
+        <p>Teste die automatische Nachrichtenlöschung mit verschiedenen Timer-Einstellungen</p>
+
+        <div class="timer-test">
+            <h3>⏰ Timer-Einstellungen</h3>
+            <div id="timer-options">
+                <div class="timer-option" data-seconds="5">5 sec</div>
+                <div class="timer-option" data-seconds="10">10 sec</div>
+                <div class="timer-option" data-seconds="30">30 sec</div>
+                <div class="timer-option" data-seconds="60">1 min</div>
+                <div class="timer-option" data-seconds="300">5 min</div>
+            </div>
+            <p>Gewählter Timer: <span id="selected-timer">10 Sekunden</span></p>
+        </div>
+
+        <div class="timer-test">
+            <h3>📤 Nachrichten senden</h3>
+            <button class="button" onclick="sendTestMessage()">Test-Nachricht senden</button>
+            <button class="button" onclick="checkMessages()">Nachrichten prüfen</button>
+            <button class="button" onclick="clearLog()">Log löschen</button>
+        </div>
+
+        <div class="timer-test">
+            <h3>💬 Aktive Nachrichten</h3>
+            <div id="message-list">Lade Nachrichten...</div>
+        </div>
+
+        <div class="log" id="log">
+            Bereite Timer-Test vor...<br>
+        </div>
+    </div>
+
+    <script>
+        let selectedTimer = 10; // Standardwert: 10 Sekunden
+        let testUsers = [];
+        let testChat = null;
+
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}<br>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = 'Log gelöscht.<br>';
+        }
+
+        // Timer-Auswahl
+        document.getElementById('timer-options').addEventListener('click', (e) => {
+            if (e.target.classList.contains('timer-option')) {
+                // Alle Optionen deselektieren
+                document.querySelectorAll('.timer-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                
+                // Gewählte Option markieren
+                e.target.classList.add('selected');
+                
+                // Timer-Wert setzen
+                selectedTimer = parseInt(e.target.dataset.seconds);
+                document.getElementById('selected-timer').textContent = 
+                    selectedTimer < 60 ? `${selectedTimer} Sekunden` : `${selectedTimer/60} Minuten`;
+                
+                log(`⏰ Timer eingestellt: ${selectedTimer} Sekunden`);
+            }
+        });
+
+        // Standard-Timer auswählen
+        document.querySelector('[data-seconds="10"]').classList.add('selected');
+
+        async function initTest() {
+            log('🚀 Initialisiere Timer-Test...');
+            
+            try {
+                // Test-Benutzer erstellen/einloggen
+                const users = [
+                    { username: 'TimerUser1', password: 'test123' },
+                    { username: 'TimerUser2', password: 'test123' }
+                ];
+
+                for (const userData of users) {
+                    log(`📝 Registriere ${userData.username}...`);
+                    
+                    try {
+                        const response = await fetch('/api/register', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                username: userData.username,
+                                password: userData.password,
+                                publicKey: 'test-key-' + Date.now()
+                            })
+                        });
+
+                        if (response.ok) {
+                            const user = await response.json();
+                            testUsers.push(user);
+                            log(`✅ ${user.username} registriert (ID: ${user.id})`);
+                        } else {
+                            // Bereits vorhanden, versuche Login
+                            const loginResponse = await fetch('/api/login', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(userData)
+                            });
+                            
+                            if (loginResponse.ok) {
+                                const user = await loginResponse.json();
+                                testUsers.push(user);
+                                log(`✅ ${user.username} eingeloggt (ID: ${user.id})`);
+                            }
+                        }
+                    } catch (error) {
+                        log(`❌ Fehler bei ${userData.username}: ${error.message}`);
+                    }
+                }
+
+                // Chat erstellen
+                if (testUsers.length >= 2) {
+                    log('💬 Erstelle Test-Chat...');
+                    const chatResponse = await fetch('/api/chats', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            user1Id: testUsers[0].id,
+                            user2Id: testUsers[1].id
+                        })
+                    });
+
+                    if (chatResponse.ok) {
+                        testChat = await chatResponse.json();
+                        log(`✅ Chat erstellt: ID ${testChat.id}`);
+                    }
+                }
+
+                log('🎯 Timer-Test bereit!');
+                await checkMessages();
+
+            } catch (error) {
+                log(`❌ Initialisierung fehlgeschlagen: ${error.message}`);
+            }
+        }
+
+        async function sendTestMessage() {
+            if (!testChat || testUsers.length < 2) {
+                log('❌ Test noch nicht initialisiert');
+                return;
+            }
+
+            try {
+                const messageContent = `Timer-Test: ${selectedTimer}s - ${new Date().toLocaleTimeString()}`;
+                const destructTimerMs = selectedTimer * 1000;
+
+                log(`📤 Sende Nachricht mit ${selectedTimer}s Timer: "${messageContent}"`);
+
+                const response = await fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chatId: testChat.id,
+                        senderId: testUsers[0].id,
+                        receiverId: testUsers[1].id,
+                        content: messageContent,
+                        messageType: 'text',
+                        destructTimer: destructTimerMs
+                    })
+                });
+
+                if (response.ok) {
+                    const message = await response.json();
+                    log(`✅ Nachricht gesendet: ID ${message.id}`);
+                    log(`⏰ Verfällt am: ${new Date(message.expiresAt).toLocaleTimeString()}`);
+                    
+                    // Nachrichten aktualisieren
+                    setTimeout(() => checkMessages(), 500);
+                    
+                    // Automatische Überprüfung nach Ablauf
+                    setTimeout(() => {
+                        log(`🔍 Automatische Überprüfung nach ${selectedTimer}s...`);
+                        checkMessages();
+                    }, (selectedTimer + 1) * 1000);
+                    
+                } else {
+                    const error = await response.text();
+                    log(`❌ Fehler beim Senden: ${error}`);
+                }
+
+            } catch (error) {
+                log(`❌ Fehler: ${error.message}`);
+            }
+        }
+
+        async function checkMessages() {
+            if (!testChat) {
+                log('❌ Kein Chat verfügbar');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/chats/${testChat.id}/messages`);
+                const messages = await response.json();
+
+                const messageList = document.getElementById('message-list');
+                const now = new Date();
+                
+                if (messages.length === 0) {
+                    messageList.innerHTML = '<em>Keine Nachrichten vorhanden</em>';
+                    log('📭 Keine Nachrichten im Chat');
+                } else {
+                    let html = '';
+                    messages.forEach(msg => {
+                        const expiresAt = new Date(msg.expiresAt);
+                        const timeLeft = Math.max(0, Math.round((expiresAt - now) / 1000));
+                        const expired = timeLeft === 0;
+                        
+                        html += `
+                            <div style="margin: 10px 0; padding: 10px; background: ${expired ? '#5d1a1a' : '#1a5d1a'}; border-radius: 5px;">
+                                <strong>ID ${msg.id}:</strong> ${msg.content}<br>
+                                <small>Verfällt: ${expiresAt.toLocaleTimeString()} 
+                                ${expired ? '(ABGELAUFEN)' : `(noch ${timeLeft}s)`}</small>
+                            </div>
+                        `;
+                    });
+                    messageList.innerHTML = html;
+                    log(`📊 ${messages.length} Nachrichten gefunden`);
+                }
+
+            } catch (error) {
+                log(`❌ Fehler beim Laden: ${error.message}`);
+            }
+        }
+
+        // Auto-refresh alle 2 Sekunden
+        setInterval(checkMessages, 2000);
+
+        // Test initialisieren
+        initTest();
+    </script>
+</body>
+</html>

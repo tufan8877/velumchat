@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>1:1 Chat Separation Browser Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #111; color: #fff; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #333; background: #222; }
+        .user-box { margin: 10px; padding: 10px; border: 1px solid #555; background: #333; }
+        input, button { margin: 5px; padding: 8px; background: #444; color: #fff; border: 1px solid #666; }
+        .message-log { background: #000; padding: 10px; height: 200px; overflow-y: auto; border: 1px solid #666; }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+        .info { color: #0af; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Whispergram 1:1 Chat Separation Test</h1>
+        
+        <div class="test-section">
+            <h2>Quick WebSocket Connection Test</h2>
+            <button onclick="testWebSocketConnection()">Test WebSocket Connection</button>
+            <div id="connection-status"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Create Test Users</h2>
+            <button onclick="createTestUsers()">Create 3 Test Users</button>
+            <div id="user-status"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Test 1:1 Chat Separation</h2>
+            <button onclick="test1v1ChatSeparation()">Start 1:1 Separation Test</button>
+            <div class="message-log" id="test-log"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Manual Chat Test</h2>
+            <div class="user-box">
+                <h3>User 1 (Alice)</h3>
+                <input type="text" id="alice-message" placeholder="Message as Alice">
+                <button onclick="sendMessage('alice')">Send as Alice</button>
+            </div>
+            <div class="user-box">
+                <h3>User 2 (Bob)</h3>
+                <input type="text" id="bob-message" placeholder="Message as Bob">
+                <button onclick="sendMessage('bob')">Send as Bob</button>
+            </div>
+            <div class="user-box">
+                <h3>User 3 (Charlie)</h3>
+                <input type="text" id="charlie-message" placeholder="Message as Charlie">
+                <button onclick="sendMessage('charlie')">Send as Charlie</button>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Real-time Message Log</h2>
+            <div class="message-log" id="message-log"></div>
+        </div>
+    </div>
+
+    <script>
+        let testUsers = [];
+        let websockets = [];
+        
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('message-log');
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            logElement.innerHTML += `<div class="${className}">[${new Date().toLocaleTimeString()}] ${message}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function testLog(message, type = 'info') {
+            const logElement = document.getElementById('test-log');
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            logElement.innerHTML += `<div class="${className}">[${new Date().toLocaleTimeString()}] ${message}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function testWebSocketConnection() {
+            const statusElement = document.getElementById('connection-status');
+            statusElement.innerHTML = 'Testing WebSocket connection...';
+            
+            try {
+                const ws = new WebSocket('ws://localhost:5000/ws');
+                
+                ws.onopen = () => {
+                    statusElement.innerHTML = '<span class="success">✅ WebSocket Connected Successfully!</span>';
+                    ws.close();
+                };
+                
+                ws.onerror = (error) => {
+                    statusElement.innerHTML = '<span class="error">❌ WebSocket Connection Failed</span>';
+                    console.error('WebSocket error:', error);
+                };
+                
+                ws.onclose = () => {
+                    if (statusElement.innerHTML.includes('Successfully')) {
+                        statusElement.innerHTML += '<br><span class="info">Connection closed (test complete)</span>';
+                    }
+                };
+                
+            } catch (error) {
+                statusElement.innerHTML = '<span class="error">❌ WebSocket Error: ' + error.message + '</span>';
+            }
+        }
+        
+        async function createTestUsers() {
+            const statusElement = document.getElementById('user-status');
+            statusElement.innerHTML = 'Creating test users...';
+            
+            const timestamp = Date.now();
+            const usernames = ['Alice', 'Bob', 'Charlie'];
+            
+            try {
+                for (let i = 0; i < usernames.length; i++) {
+                    const response = await fetch('http://localhost:5000/api/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            username: `${usernames[i]}_${timestamp}`,
+                            password: 'test123',
+                            publicKey: `key_${usernames[i]}_${timestamp}`
+                        })
+                    });
+                    
+                    const userData = await response.json();
+                    if (userData.user) {
+                        testUsers.push(userData.user);
+                        statusElement.innerHTML += `<br>✅ Created ${userData.user.username} (ID: ${userData.user.id})`;
+                    } else {
+                        statusElement.innerHTML += `<br>❌ Failed to create ${usernames[i]}`;
+                    }
+                }
+                
+                if (testUsers.length === 3) {
+                    statusElement.innerHTML += '<br><span class="success">🎉 All test users created successfully!</span>';
+                }
+                
+            } catch (error) {
+                statusElement.innerHTML += '<br><span class="error">❌ Error creating users: ' + error.message + '</span>';
+            }
+        }
+        
+        async function test1v1ChatSeparation() {
+            if (testUsers.length !== 3) {
+                testLog('❌ Need 3 test users first!', 'error');
+                return;
+            }
+            
+            testLog('🚀 Starting 1:1 Chat Separation Test...', 'info');
+            
+            const [alice, bob, charlie] = testUsers;
+            testLog(`👩 Alice: ${alice.username} (ID: ${alice.id})`, 'info');
+            testLog(`👨 Bob: ${bob.username} (ID: ${bob.id})`, 'info');
+            testLog(`👨 Charlie: ${charlie.username} (ID: ${charlie.id})`, 'info');
+            
+            // Connect WebSockets
+            const wsAlice = new WebSocket('ws://localhost:5000/ws');
+            const wsBob = new WebSocket('ws://localhost:5000/ws');
+            const wsCharlie = new WebSocket('ws://localhost:5000/ws');
+            
+            let connectedCount = 0;
+            let aliceMessages = [];
+            
+            // Alice receives messages
+            wsAlice.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'new_message') {
+                    const msg = data.message;
+                    aliceMessages.push(msg);
+                    const senderName = msg.senderId === bob.id ? 'Bob' : 'Charlie';
+                    testLog(`📥 Alice received from ${senderName}: "${msg.content}" (Chat: ${msg.chatId})`, 'success');
+                }
+            };
+            
+            // Connect users
+            wsAlice.onopen = () => {
+                testLog('🔌 Alice connected', 'info');
+                wsAlice.send(JSON.stringify({ type: 'join', userId: alice.id }));
+                connectedCount++;
+                if (connectedCount === 3) startChatTest();
+            };
+            
+            wsBob.onopen = () => {
+                testLog('🔌 Bob connected', 'info');
+                wsBob.send(JSON.stringify({ type: 'join', userId: bob.id }));
+                connectedCount++;
+                if (connectedCount === 3) startChatTest();
+            };
+            
+            wsCharlie.onopen = () => {
+                testLog('🔌 Charlie connected', 'info');
+                wsCharlie.send(JSON.stringify({ type: 'join', userId: charlie.id }));
+                connectedCount++;
+                if (connectedCount === 3) startChatTest();
+            };
+            
+            function startChatTest() {
+                testLog('📤 Bob → Alice: "Hello from Bob!"', 'info');
+                setTimeout(() => {
+                    wsBob.send(JSON.stringify({
+                        type: 'message',
+                        senderId: bob.id,
+                        receiverId: alice.id,
+                        content: 'Hello from Bob!',
+                        messageType: 'text',
+                        destructTimer: 30000,
+                        chatId: null
+                    }));
+                }, 500);
+                
+                setTimeout(() => {
+                    testLog('📤 Charlie → Alice: "Hi from Charlie!"', 'info');
+                    wsCharlie.send(JSON.stringify({
+                        type: 'message',
+                        senderId: charlie.id,
+                        receiverId: alice.id,
+                        content: 'Hi from Charlie!',
+                        messageType: 'text',
+                        destructTimer: 30000,
+                        chatId: null
+                    }));
+                }, 1500);
+                
+                // Check results
+                setTimeout(async () => {
+                    testLog('📊 Checking chat separation...', 'info');
+                    
+                    const aliceChats = await fetch(`http://localhost:5000/api/chats/${alice.id}`).then(r => r.json());
+                    testLog(`📋 Alice has ${aliceChats.length} chats`, 'info');
+                    
+                    if (aliceChats.length === 2) {
+                        testLog('🎉 PERFECT! 2 separate chats created (Bob and Charlie)', 'success');
+                        testLog('✅ 1:1 Chat separation working correctly!', 'success');
+                    } else {
+                        testLog(`❌ Expected 2 chats, got ${aliceChats.length}`, 'error');
+                    }
+                    
+                    // Close connections
+                    [wsAlice, wsBob, wsCharlie].forEach(ws => ws.close());
+                    
+                }, 3000);
+            }
+        }
+        
+        function sendMessage(user) {
+            if (testUsers.length !== 3) {
+                log('❌ Need test users first!', 'error');
+                return;
+            }
+            
+            const messageInput = document.getElementById(`${user}-message`);
+            const message = messageInput.value;
+            if (!message) return;
+            
+            log(`📤 ${user} sending: "${message}"`, 'info');
+            messageInput.value = '';
+            
+            // This would send the message via WebSocket
+            // Implementation depends on which user is sending
+        }
+        
+        // Auto-test on load
+        window.onload = () => {
+            log('🌟 Whispergram 1:1 Chat Test Ready', 'success');
+            log('1. Test WebSocket connection', 'info');
+            log('2. Create test users', 'info');
+            log('3. Run 1:1 separation test', 'info');
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Direct Test</h1>
+    <div id="status">Disconnected</div>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Enter message">
+    <button onclick="sendMessage()">Send</button>
+    
+    <script>
+        let ws;
+        const status = document.getElementById('status');
+        const messages = document.getElementById('messages');
+        
+        function connect() {
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            console.log("Connecting to:", wsUrl);
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                status.textContent = 'Connected!';
+                console.log("Connected to WebSocket");
+                
+                // Join as user 1 (Alice)
+                ws.send(JSON.stringify({
+                    type: 'join',
+                    userId: 1
+                }));
+            };
+            
+            ws.onmessage = (event) => {
+                console.log("Received:", event.data);
+                const div = document.createElement('div');
+                div.textContent = event.data;
+                messages.appendChild(div);
+            };
+            
+            ws.onclose = () => {
+                status.textContent = 'Disconnected';
+                console.log("WebSocket closed");
+            };
+            
+            ws.onerror = (error) => {
+                console.error("WebSocket error:", error);
+                status.textContent = 'Error';
+            };
+        }
+        
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            if (ws && ws.readyState === WebSocket.OPEN && input.value) {
+                const message = {
+                    type: 'message',
+                    chatId: 1,
+                    senderId: 1,
+                    receiverId: 2,
+                    content: input.value,
+                    messageType: 'text',
+                    destructTimer: 10
+                };
+                console.log("Sending:", message);
+                ws.send(JSON.stringify(message));
+                input.value = '';
+            }
+        }
+        
+        // Connect on load
+        connect();
+    </script>
+</body>
+</html>

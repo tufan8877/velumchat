@@ -1,0 +1,113 @@
+{
+  "chats": {
+    "1": {
+      "participant1Id": 1,
+      "participant2Id": 2,
+      "id": 1,
+      "lastMessageId": 2,
+      "unreadCount1": 0,
+      "unreadCount2": 11,
+      "createdAt": "2025-07-18T15:37:33.535Z"
+    },
+    "2": {
+      "participant1Id": 6,
+      "participant2Id": 5,
+      "id": 2,
+      "lastMessageId": 1,
+      "unreadCount1": 0,
+      "unreadCount2": 1,
+      "createdAt": "2025-07-19T08:35:57.160Z"
+    },
+    "3": {
+      "participant1Id": 6,
+      "participant2Id": 4,
+      "id": 3,
+      "lastMessageId": 2,
+      "unreadCount1": 0,
+      "unreadCount2": 1,
+      "createdAt": "2025-07-19T08:36:13.034Z"
+    },
+    "4": {
+      "participant1Id": 9,
+      "participant2Id": 8,
+      "id": 4,
+      "lastMessageId": 2,
+      "unreadCount1": 2,
+      "unreadCount2": 0,
+      "createdAt": "2025-11-04T22:07:11.459Z"
+    },
+    "5": {
+      "participant1Id": 10,
+      "participant2Id": 8,
+      "id": 5,
+      "lastMessageId": 5,
+      "unreadCount1": 4,
+      "unreadCount2": 0,
+      "createdAt": "2025-11-04T18:51:44.382Z"
+    },
+    "6": {
+      "participant1Id": 11,
+      "participant2Id": 8,
+      "id": 6,
+      "lastMessageId": 1,
+      "unreadCount1": 2,
+      "unreadCount2": 0,
+      "createdAt": "2025-11-05T14:48:16.439Z"
+    },
+    "7": {
+      "participant1Id": 12,
+      "participant2Id": 8,
+      "id": 7,
+      "lastMessageId": 4,
+      "unreadCount1": 0,
+      "unreadCount2": 0,
+      "createdAt": "2025-12-13T17:11:23.077Z"
+    },
+    "8": {
+      "participant1Id": 14,
+      "participant2Id": 8,
+      "id": 8,
+      "lastMessageId": 2,
+      "unreadCount1": 0,
+      "unreadCount2": 0,
+      "createdAt": "2025-11-04T22:11:36.500Z"
+    },
+    "9": {
+      "participant1Id": 14,
+      "participant2Id": 9,
+      "id": 9,
+      "lastMessageId": null,
+      "unreadCount1": 0,
+      "unreadCount2": 0,
+      "createdAt": "2025-11-04T22:10:42.520Z"
+    },
+    "10": {
+      "participant1Id": 14,
+      "participant2Id": 5,
+      "id": 10,
+      "lastMessageId": 3,
+      "unreadCount1": 0,
+      "unreadCount2": 2,
+      "createdAt": "2025-11-04T22:10:19.575Z"
+    },
+    "11": {
+      "participant1Id": 15,
+      "participant2Id": 5,
+      "id": 11,
+      "lastMessageId": 1,
+      "unreadCount1": 0,
+      "unreadCount2": 2,
+      "createdAt": "2025-12-13T17:10:41.580Z"
+    },
+    "12": {
+      "participant1Id": 12,
+      "participant2Id": 15,
+      "id": 12,
+      "lastMessageId": 4,
+      "unreadCount1": 4,
+      "unreadCount2": 0,
+      "createdAt": "2025-12-13T17:11:52.747Z"
+    }
+  },
+  "chatIdCounter": 13
+}

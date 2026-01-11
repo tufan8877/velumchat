@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Unread Badge Display</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .badge-demo {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 50%;
+            min-width: 20px;
+            height: 20px;
+            line-height: 20px;
+            text-align: center;
+            margin: 0 10px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Unread Badge System Test</h1>
+        
+        <div class="test-result info">
+            <h3>Test Status</h3>
+            <p>Testing if unread message badges display correctly in the chat interface...</p>
+        </div>
+
+        <div class="test-result">
+            <h3>Expected Badge Display</h3>
+            <p>Alice should see a badge like this: <span class="badge-demo">2</span> for 2 unread messages</p>
+        </div>
+
+        <div id="api-test-results"></div>
+        
+        <div>
+            <button onclick="testAPI()">Test API</button>
+            <button onclick="testFrontend()">Test Frontend</button>
+            <button onclick="sendTestMessage()">Send Test Message</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function testAPI() {
+            const resultsDiv = document.getElementById('api-test-results');
+            resultsDiv.innerHTML = '<p>Testing API...</p>';
+            
+            try {
+                // Test Alice's chats
+                const response = await fetch('/api/chats/2');
+                const chats = await response.json();
+                
+                let html = '<div class="test-result success"><h3>✅ API Test Success</h3>';
+                html += '<h4>Alice\'s Chats:</h4>';
+                html += '<pre>' + JSON.stringify(chats, null, 2) + '</pre>';
+                
+                if (chats.length > 0) {
+                    const unreadCount = chats[0].unreadCount;
+                    html += `<p><strong>Unread Count:</strong> ${unreadCount}</p>`;
+                    
+                    if (unreadCount > 0) {
+                        html += `<p>✅ Badge should show: <span class="badge-demo">${unreadCount}</span></p>`;
+                    } else {
+                        html += '<p>ℹ️ No unread messages - badge should not show</p>';
+                    }
+                }
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="test-result error"><h3>❌ API Test Failed</h3><p>${error.message}</p></div>`;
+            }
+        }
+
+        async function testFrontend() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="test-result info"><h3>Frontend Test</h3><p>Please check the main application at <a href="/" target="_blank">localhost:5000</a></p><p>1. Login as Alice (password: password123)</p><p>2. Check if badges show in the chat list</p><p>3. Open the chat to see if badge disappears</p></div>';
+        }
+
+        async function sendTestMessage() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Sending test message...</p>';
+            
+            try {
+                const response = await fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chatId: 1,
+                        senderId: 1,
+                        receiverId: 2,
+                        content: 'Test message from browser test!',
+                        destructTimer: 86400
+                    })
+                });
+                
+                if (response.ok) {
+                    const message = await response.json();
+                    resultsDiv.innerHTML = `<div class="test-result success"><h3>✅ Message Sent</h3><p>Message ID: ${message.id}</p><p>Alice should now have one more unread message!</p></div>`;
+                    
+                    // Refresh API test
+                    setTimeout(testAPI, 1000);
+                } else {
+                    resultsDiv.innerHTML = `<div class="test-result error"><h3>❌ Failed to send message</h3><p>Status: ${response.status}</p></div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="test-result error"><h3>❌ Error</h3><p>${error.message}</p></div>`;
+            }
+        }
+
+        // Auto-test on page load
+        document.addEventListener('DOMContentLoaded', testAPI);
+    </script>
+</body>
+</html>
