@@ -29,6 +29,9 @@ interface WhatsAppSidebarProps {
   unreadCounts?: Map<number, number>;
   onRefreshChats?: () => void;
 
+  // ✅ NEW: typing status je Chat
+  typingByChat?: Map<number, boolean>;
+
   // ✅ NEW: kommt aus usePersistentChats()
   onDeleteChat: (chatId: number) => Promise<void> | void;
 
@@ -64,6 +67,7 @@ export default function WhatsAppSidebar({
   isConnected,
   isLoading,
   unreadCounts = new Map(),
+  typingByChat = new Map(),
   onRefreshChats,
   onDeleteChat,
   onBlockUser,
@@ -100,7 +104,6 @@ export default function WhatsAppSidebar({
 
   const handleBlockUser = async (userId: number) => {
     try {
-      // wenn du lieber deine server-route nutzt:
       const res = await fetch(`/api/users/${userId}/block`, {
         method: "POST",
         headers: authHeaders({ "Content-Type": "application/json" }),
@@ -114,9 +117,7 @@ export default function WhatsAppSidebar({
         return;
       }
 
-      // optional extra hook callback
       onBlockUser?.(userId);
-
       onRefreshChats?.();
     } catch (err) {
       console.error("❌ Error blocking user:", err);
@@ -243,6 +244,8 @@ export default function WhatsAppSidebar({
                 const mapUnreadCount = unreadCounts?.get(chat.id) || 0;
                 const finalUnreadCount = Math.max(apiUnreadCount, mapUnreadCount);
 
+                const isTyping = Boolean(typingByChat?.get(chat.id));
+
                 return (
                   <div
                     key={chat.id}
@@ -272,7 +275,9 @@ export default function WhatsAppSidebar({
                           <h3 className="font-semibold text-base text-foreground truncate">
                             {chat.otherUser.username}
                           </h3>
-                          {chat.lastMessage && (
+
+                          {/* Zeit nur anzeigen wenn nicht typing */}
+                          {!isTyping && chat.lastMessage && (
                             <span className="text-xs text-muted-foreground font-medium">
                               {formatLastMessageTime(chat.lastMessage.createdAt)}
                             </span>
@@ -280,7 +285,16 @@ export default function WhatsAppSidebar({
                         </div>
 
                         <div className="flex items-center justify-between">
-                          {chat.lastMessage ? (
+                          {isTyping ? (
+                            <div className="flex items-center gap-2 text-sm text-primary font-medium truncate flex-1">
+                              <div className="typing-indicator scale-75 origin-left">
+                                <div className="typing-dot" />
+                                <div className="typing-dot" style={{ animationDelay: "0.1s" }} />
+                                <div className="typing-dot" style={{ animationDelay: "0.2s" }} />
+                              </div>
+                              <span className="italic text-muted-foreground">schreibt…</span>
+                            </div>
+                          ) : chat.lastMessage ? (
                             <p className="text-sm text-muted-foreground truncate flex-1">
                               {chat.lastMessage.content}
                             </p>
@@ -314,7 +328,7 @@ export default function WhatsAppSidebar({
                           <DropdownMenuItem
                             onClick={async (e) => {
                               e.stopPropagation();
-                              await onDeleteChat(chat.id); // ✅ CUT-OFF delete
+                              await onDeleteChat(chat.id);
                             }}
                             className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                           >
