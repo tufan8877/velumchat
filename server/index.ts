@@ -22,17 +22,42 @@ app.use(express.urlencoded({ extended: false }));
  * ✅ CORS (korrekt für credentials: "include")
  * - Kein "*", wenn Cookies/Sessions/JWT-Cookies genutzt werden
  * - Allow-Credentials muss true sein
+ *
+ * ✅ FIX: Erlaubt automatisch die aktuelle Render-Domain (same host),
+ * plus optional zusätzliche Origins per ENV: ALLOWED_ORIGINS
  */
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
+  const origin = req.headers.origin as string | undefined;
 
-  const allowedOrigins = new Set([
+  // Basis-Whitelist
+  const allowedOrigins = new Set<string>([
     "https://whisper3.onrender.com",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
   ]);
 
-  if (origin && allowedOrigins.has(origin)) {
+  // Optional: weitere erlaubte Origins via ENV (kommagetrennt)
+  const extra = (process.env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  for (const o of extra) allowedOrigins.add(o);
+
+  // Render/Proxy Headers berücksichtigen
+  const forwardedHost =
+    (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+
+  let sameHost = false;
+  if (origin && forwardedHost) {
+    try {
+      const o = new URL(origin);
+      sameHost = o.host === forwardedHost;
+    } catch {
+      sameHost = false;
+    }
+  }
+
+  if (origin && (sameHost || allowedOrigins.has(origin))) {
     res.header("Access-Control-Allow-Origin", origin);
   }
 
