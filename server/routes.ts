@@ -215,7 +215,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const chat = await storage.getOrCreateChatByParticipants(participant1Id, participant2Id);
 
       // OPTIONAL: wenn er vorher gelöscht war, wieder sichtbar machen
-      // (sonst könnte "Chat erstellen" ok sein, aber nicht in Liste erscheinen)
       try {
         const wasDeleted = await storage.isChatDeletedForUser(participant1Id, chat.id);
         if (wasDeleted) await storage.reactivateChatForUser(participant1Id, chat.id);
@@ -245,7 +244,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * ✅ FIX: Wenn User Chat gelöscht hat (deletedAt),
    * dürfen alte Nachrichten NIE wieder erscheinen.
-   *
    * Wir filtern serverseitig: createdAt > deletedAt
    */
   app.get("/api/chats/:chatId/messages", requireAuth, async (req: any, res) => {
@@ -364,13 +362,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }, 300000);
 
   wss.on("connection", (ws: any, req: any) => {
-    const origin = req.headers.origin;
-    const allowedOrigins = new Set([
+    // ✅ FIX: Origin-Check so, dass Render-Domain automatisch erlaubt ist
+    const origin = req.headers.origin as string | undefined;
+
+    const allowedOrigins = new Set<string>([
       "https://whisper3.onrender.com",
       "http://localhost:5173",
       "http://127.0.0.1:5173",
     ]);
-    if (origin && !allowedOrigins.has(origin)) {
+
+    const extra = (process.env.ALLOWED_ORIGINS || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    for (const o of extra) allowedOrigins.add(o);
+
+    const forwardedHost =
+      (req.headers["x-forwarded-host"] as string | undefined) || req.headers.host;
+
+    let sameHost = false;
+    if (origin && forwardedHost) {
+      try {
+        const o = new URL(origin);
+        sameHost = o.host === forwardedHost;
+      } catch {
+        sameHost = false;
+      }
+    }
+
+    // Wenn origin fehlt (manche Clients/Tools), nicht blocken.
+    if (origin && !(sameHost || allowedOrigins.has(origin))) {
       ws.close(1008, "Origin not allowed");
       return;
     }
@@ -515,7 +536,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               messageType: (validatedMessage as any).messageType,
               fileName: (validatedMessage as any).fileName,
               fileSize: (validatedMessage as any).fileSize,
-              destructTimer: destructTimerSec as any, // falls schema es braucht
+              destructTimer: destructTimerSec as any,
               isRead: false as any,
               expiresAt,
             } as any);
