@@ -1,136 +1,66 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Clock, Download, Eye } from "lucide-react";
-import type { Message, User } from "@shared/schema";
+import React from "react";
+import type { User } from "@shared/schema";
 
-interface MessageProps {
-  message: Message;
+export default function Message({
+  message,
+  isOwn,
+  otherUser,
+}: {
+  message: any;
   isOwn: boolean;
   otherUser: User;
-}
+}) {
+  const type = message?.messageType || "text";
+  const raw = String(message?.content || "");
 
-export default function Message({ message, isOwn }: MessageProps) {
-  const [timeRemaining, setTimeRemaining] = useState<string>("");
+  // ✅ Normalisiere URL:
+  // - "/uploads/xyz" -> absolute url
+  // - "http(s)://..." bleibt
+  // - "blob:..." (optimistic preview) bleibt
+  const src =
+    raw.startsWith("http") || raw.startsWith("blob:") || raw.startsWith("data:")
+      ? raw
+      : raw.startsWith("/")
+      ? new URL(raw, window.location.origin).toString()
+      : raw;
 
-  useEffect(() => {
-    const updateTimer = () => {
-      const now = new Date();
-      const expiresAt = new Date(message.expiresAt);
-      const remaining = expiresAt.getTime() - now.getTime();
-
-      if (remaining <= 0) {
-        setTimeRemaining("Expired");
-        return;
-      }
-
-      const hours = Math.floor(remaining / (1000 * 60 * 60));
-      const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
-
-      if (hours > 0) setTimeRemaining(`${hours}h ${minutes}m`);
-      else if (minutes > 0) setTimeRemaining(`${minutes}m ${seconds}s`);
-      else setTimeRemaining(`${seconds}s`);
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [message.expiresAt]);
-
-  const formatTime = (date: string | Date) =>
-    new Date(date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-  const bubbleBase =
-    "max-w-[78%] w-fit rounded-2xl px-3 py-2 shadow-sm " +
-    "whitespace-pre-wrap leading-5 text-[16px] " +
-    "[overflow-wrap:anywhere] [word-break:normal]";
-
-  const bubbleOwn = "bg-blue-600 text-white rounded-tr-md ml-auto";
-  const bubbleOther = "bg-surface text-white rounded-tl-md mr-auto";
-
-  const renderContent = () => {
-    if (message.messageType === "text") {
-      return (
-        <div className={`${bubbleBase} ${isOwn ? bubbleOwn : bubbleOther}`}>
-          {/* ✅ KEIN break-words mehr -> WhatsApp-like Wrapping */}
-          <p className="whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:normal]">
-            {message.content}
-          </p>
-        </div>
-      );
-    }
-
-    if (message.messageType === "image") {
-      return (
-        <div className={`${bubbleBase} ${isOwn ? bubbleOwn : bubbleOther}`}>
-          <div className="space-y-2">
-            <div className="bg-black/20 rounded-lg overflow-hidden max-w-xs">
-              <img
-                src={message.content}
-                alt="Shared"
-                className="w-full h-auto max-h-64 object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = "none";
-                  target.nextElementSibling?.classList.remove("hidden");
-                }}
-              />
-              <div className="hidden flex items-center justify-center h-32 text-muted-foreground">
-                <Eye className="w-8 h-8" />
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (message.messageType === "file") {
-      return (
-        <div className={`${bubbleBase} ${isOwn ? bubbleOwn : bubbleOther}`}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
-              <span className="text-xs">📄</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate">
-                {message.fileName || message.content}
-              </p>
-              <p className="text-xs opacity-70">
-                {message.fileSize ? `${(message.fileSize / 1024).toFixed(1)} KB` : "File"} • Encrypted
-              </p>
-            </div>
-            <Button variant="ghost" size="sm" className="text-current hover:bg-white/10">
-              <Download className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
-    return null;
-  };
+  const bubbleClass = isOwn
+    ? "bg-blue-600 text-white rounded-2xl rounded-tr-md"
+    : "bg-surface text-foreground rounded-2xl rounded-tl-md";
 
   return (
-    <div className={`flex w-full ${isOwn ? "justify-end" : "justify-start"} animate-fade-in`}>
-      <div className={`flex items-end gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"} w-full`}>
-        {!isOwn && (
-          <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-muted-foreground text-xs">👤</span>
+    <div className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
+      <div className={`max-w-[78%] md:max-w-[60%] p-3 ${bubbleClass}`}>
+        {type === "image" ? (
+          <div className="space-y-2">
+            <img
+              src={src}
+              alt="image"
+              className="max-w-full rounded-xl"
+              style={{ maxHeight: 360, objectFit: "cover" }}
+              loading="lazy"
+            />
           </div>
+        ) : type === "file" ? (
+          <div className="space-y-1">
+            <div className="font-medium truncate">{message?.fileName || "File"}</div>
+            <a
+              href={src}
+              target="_blank"
+              rel="noreferrer"
+              className={isOwn ? "underline text-white/90" : "underline text-primary"}
+            >
+              Open / Download
+            </a>
+            {message?.fileSize ? (
+              <div className={isOwn ? "text-white/80 text-xs" : "text-muted-foreground text-xs"}>
+                {Math.round((Number(message.fileSize) / 1024) * 10) / 10} KB
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="whitespace-pre-wrap break-words">{raw}</div>
         )}
-
-        <div className={`flex flex-col ${isOwn ? "items-end" : "items-start"} w-full`}>
-          {renderContent()}
-
-          {/* ✅ Timestamp/Timer immer unter der Bubble */}
-          <div className={`flex items-center gap-2 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
-            <span className="text-xs text-muted-foreground">{formatTime(message.createdAt)}</span>
-            <div className="flex items-center gap-1">
-              <Clock className="w-3 h-3 text-destructive" />
-              <span className="text-xs text-destructive">{timeRemaining}</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
