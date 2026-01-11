@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
@@ -29,10 +34,10 @@ interface WhatsAppSidebarProps {
   unreadCounts?: Map<number, number>;
   onRefreshChats?: () => void;
 
-  // ✅ NEW: typing status je Chat
+  // ✅ Typing status je Chat
   typingByChat?: Map<number, boolean>;
 
-  // ✅ NEW: kommt aus usePersistentChats()
+  // ✅ Delete chat (kommt aus usePersistentChats)
   onDeleteChat: (chatId: number) => Promise<void> | void;
 
   // optional: block
@@ -232,7 +237,12 @@ export default function WhatsAppSidebar({
               </div>
               <h3 className="font-semibold text-foreground mb-2">{t("noChats")}</h3>
               <p className="text-sm text-muted-foreground mb-4">{t("noChatDescription")}</p>
-              <Button variant="outline" size="sm" onClick={() => setShowNewChatDialog(true)} className="gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowNewChatDialog(true)}
+                className="gap-2"
+              >
                 <Plus className="w-4 h-4" />
                 {t("newChat")}
               </Button>
@@ -286,13 +296,13 @@ export default function WhatsAppSidebar({
 
                         <div className="flex items-center justify-between">
                           {isTyping ? (
-                            <div className="flex items-center gap-2 text-sm text-primary font-medium truncate flex-1">
+                            // ✅ NUR PUNKTE, KEIN TEXT
+                            <div className="flex items-center text-sm truncate flex-1">
                               <div className="typing-indicator scale-75 origin-left">
                                 <div className="typing-dot" />
                                 <div className="typing-dot" style={{ animationDelay: "0.1s" }} />
                                 <div className="typing-dot" style={{ animationDelay: "0.2s" }} />
                               </div>
-                              <span className="italic text-muted-foreground">schreibt…</span>
                             </div>
                           ) : chat.lastMessage ? (
                             <p className="text-sm text-muted-foreground truncate flex-1">
