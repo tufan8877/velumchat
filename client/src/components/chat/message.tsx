@@ -37,9 +37,12 @@ export default function Message({
       ? new URL(raw, window.location.origin).toString()
       : raw;
 
+  // ✅ Sichtbare Bubbles:
+  // - own: blau
+  // - other: leichtes Grau (damit es immer sichtbar ist)
   const bubbleBase = isOwn
     ? "bg-blue-600 text-white rounded-2xl rounded-tr-md"
-    : "bg-surface text-foreground rounded-2xl rounded-tl-md";
+    : "bg-muted/30 text-foreground rounded-2xl rounded-tl-md border border-border/40";
 
   const avatarLetter = (otherUser?.username || "U").charAt(0).toUpperCase();
 
@@ -85,13 +88,9 @@ export default function Message({
   const remainingMs = expiresAtMs ? expiresAtMs - now : 0;
   const showCountdown = expiresAtMs > 0 && remainingMs > 0;
 
-  // ✅ Bubble padding: unten rechts Platz für Timer lassen
+  // ✅ Bubble padding: unten rechts Platz für Timer
   const bubblePadding =
-    type === "image"
-      ? "p-2 pb-7" // Bild braucht unten Platz
-      : type === "file"
-      ? "p-3 pb-7"
-      : "p-3 pb-6"; // Text
+    type === "image" ? "p-2 pb-7" : type === "file" ? "p-3 pb-7" : "p-3 pb-6";
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} items-end gap-2`}>
@@ -102,7 +101,7 @@ export default function Message({
         </div>
       )}
 
-      {/* ✅ Bubble als relative Container, Timer absolut unten rechts */}
+      {/* Bubble */}
       <div className={`relative max-w-[78%] md:max-w-[60%] ${bubbleBase} ${bubblePadding}`}>
         {type === "image" ? (
           <img
@@ -133,7 +132,7 @@ export default function Message({
           <div className="whitespace-pre-wrap break-words">{raw}</div>
         )}
 
-        {/* ✅ Timer rechts unten IN der Bubble */}
+        {/* Timer rechts unten */}
         {showCountdown && (
           <div
             className={`absolute bottom-1 right-2 text-[11px] leading-none ${
