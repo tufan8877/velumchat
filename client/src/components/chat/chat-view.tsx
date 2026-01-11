@@ -12,6 +12,8 @@ interface ChatViewProps {
   selectedChat: (Chat & { otherUser: User }) | null;
   messages: MessageType[];
   onSendMessage: (content: string, type: string, destructTimerSeconds: number, file?: File) => void;
+  onTyping: (isTyping: boolean) => void;
+  isOtherTyping: boolean;
   isConnected: boolean;
   onBackToList: () => void;
 }
@@ -21,12 +23,18 @@ export default function ChatView({
   selectedChat,
   messages,
   onSendMessage,
+  onTyping,
+  isOtherTyping,
   isConnected,
   onBackToList,
 }: ChatViewProps) {
   const [messageInput, setMessageInput] = useState("");
   const [destructTimer, setDestructTimer] = useState("300"); // seconds
-  const [isTyping, setIsTyping] = useState(false);
+
+  // local typing control
+  const localTypingRef = useRef(false);
+  const typingIdleTimerRef = useRef<any>(null);
+  const typingThrottleRef = useRef<number>(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,6 +63,60 @@ export default function ChatView({
     return Number.isFinite(s) ? s : 300;
   };
 
+  const sendTypingSafe = (state: boolean) => {
+    if (!isConnected) return;
+    if (!selectedChat) return;
+    try {
+      onTyping(state);
+    } catch {}
+  };
+
+  const stopTyping = () => {
+    if (typingIdleTimerRef.current) {
+      clearTimeout(typingIdleTimerRef.current);
+      typingIdleTimerRef.current = null;
+    }
+    if (localTypingRef.current) {
+      localTypingRef.current = false;
+      sendTypingSafe(false);
+    }
+  };
+
+  const startOrRefreshTyping = () => {
+    const now = Date.now();
+    // keep-alive: sende typing:true max alle 2s während man weiter tippt
+    if (!localTypingRef.current || now - typingThrottleRef.current > 2000) {
+      localTypingRef.current = true;
+      typingThrottleRef.current = now;
+      sendTypingSafe(true);
+    }
+  };
+
+  const handleInputChange = (v: string) => {
+    setMessageInput(v);
+
+    if (!selectedChat || !isConnected) return;
+
+    const hasText = v.trim().length > 0;
+    if (!hasText) {
+      stopTyping();
+      return;
+    }
+
+    startOrRefreshTyping();
+
+    if (typingIdleTimerRef.current) clearTimeout(typingIdleTimerRef.current);
+    typingIdleTimerRef.current = setTimeout(() => {
+      stopTyping();
+    }, 1200);
+  };
+
+  // stop typing when switching chats/unmount
+  useEffect(() => {
+    stopTyping();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChat?.id]);
+
   const handleSendMessage = () => {
     const text = messageInput.trim();
     if (!text || !selectedChat) return;
@@ -64,6 +126,7 @@ export default function ChatView({
       return;
     }
 
+    stopTyping();
     onSendMessage(text, "text", getTimerSeconds());
     setMessageInput("");
     setTimeout(() => scrollToBottom(true), 50);
@@ -97,13 +160,11 @@ export default function ChatView({
       const reader = new FileReader();
       reader.onload = () => {
         const base64 = reader.result as string;
-        // ✅ Timer in SEKUNDEN (nicht ms)
         onSendMessage(base64, "image", secs, file);
       };
       reader.onerror = () => alert(t("failedToReadFile"));
       reader.readAsDataURL(file);
     } else {
-      // ✅ Timer in SEKUNDEN (nicht ms)
       onSendMessage(`📎 ${file.name}`, "file", secs, file);
     }
 
@@ -229,7 +290,8 @@ export default function ChatView({
           <Message key={m.id} message={m} isOwn={m.senderId === currentUser.id} otherUser={selectedChat.otherUser} />
         ))}
 
-        {isTyping && (
+        {/* ✅ Typing bubble */}
+        {isOtherTyping && (
           <div className="flex items-start gap-2">
             <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-muted-foreground text-xs">👤</span>
@@ -274,7 +336,7 @@ export default function ChatView({
             <Textarea
               placeholder={isConnected ? t("typeMessage") : t("connecting")}
               value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
+              onChange={(e) => handleInputChange(e.target.value)}
               onKeyDown={handleKeyDown}
               className="chat-textarea resize-none pr-10"
               rows={1}
