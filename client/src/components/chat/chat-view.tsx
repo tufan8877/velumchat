@@ -131,7 +131,7 @@ export default function ChatView({
     }
   };
 
-  // ✅ FIX: Dateien NICHT als Base64 über WS -> wir geben File weiter, Hook lädt hoch
+  // ✅ Dateien NICHT als Base64 über WS -> File weitergeben, Hook lädt hoch
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -199,6 +199,8 @@ export default function ChatView({
     );
   }
 
+  const headerLetter = (selectedChat.otherUser.username || "U").charAt(0).toUpperCase();
+
   return (
     <div className="flex-1 flex flex-col h-[100dvh] bg-background chat-shell no-x-scroll">
       {/* Header */}
@@ -215,8 +217,9 @@ export default function ChatView({
               <ArrowLeft className="w-4 h-4" />
             </Button>
 
+            {/* ✅ Avatar wieder als Buchstabe */}
             <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center flex-shrink-0 avatar-mobile">
-              <span className="text-muted-foreground">👤</span>
+              <span className="text-muted-foreground font-semibold">{headerLetter}</span>
             </div>
 
             <div className="min-w-0">
@@ -277,10 +280,11 @@ export default function ChatView({
           <Message key={m.id} message={m} isOwn={m.senderId === currentUser.id} otherUser={selectedChat.otherUser} />
         ))}
 
+        {/* Typing bubble bleibt wie gehabt */}
         {isOtherTyping && (
           <div className="flex items-start gap-2">
             <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-muted-foreground text-xs">👤</span>
+              <span className="text-muted-foreground text-sm font-semibold">{headerLetter}</span>
             </div>
             <div className="bg-surface rounded-2xl rounded-tl-md p-3">
               <div className="typing-indicator">
