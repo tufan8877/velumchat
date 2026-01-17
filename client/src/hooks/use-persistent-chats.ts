@@ -34,39 +34,48 @@ function getAuthToken(): string | null {
   }
 }
 
-async function authedFetch(url: string, init?: RequestInit) {
-  const token = getAuthToken();
-  if (!token) throw new Error("Missing token");
-
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      ...(init?.headers || {}),
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  const text = await res.text().catch(() => "");
-  let json: any = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {}
-
-  if (!res.ok) {
-    const msg = json?.message || `HTTP ${res.status}`;
-    throw new Error(msg);
-  }
-
-  return json;
-}
-
 function toMs(dateLike: any): number {
   const t = new Date(dateLike).getTime();
   return Number.isFinite(t) ? t : 0;
 }
 
+// ✅ Abortable fetch helper (verhindert “endlos laden”)
+async function authedFetch(url: string, init?: RequestInit, timeoutMs = 15000) {
+  const token = getAuthToken();
+  if (!token) throw new Error("Missing token");
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        ...(init?.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const text = await res.text().catch(() => "");
+    let json: any = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {}
+
+    if (!res.ok) {
+      const msg = json?.message || `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+
+    return json;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ✅ Upload helper
-async function uploadFile(file: File): Promise<{
+async function uploadFile(file: File, timeoutMs = 30000): Promise<{
   ok: boolean;
   url: string;
   filename?: string;
@@ -77,31 +86,33 @@ async function uploadFile(file: File): Promise<{
   const token = getAuthToken();
   if (!token) throw new Error("Missing token");
 
-  const fd = new FormData();
-  fd.append("file", file);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  const res = await fetch("/api/upload", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: fd,
-  });
-
-  const text = await res.text().catch(() => "");
-  let json: any = null;
   try {
-    json = text ? JSON.parse(text) : null;
-  } catch {}
+    const fd = new FormData();
+    fd.append("file", file);
 
-  if (!res.ok) {
-    throw new Error(json?.message || `Upload failed (HTTP ${res.status})`);
-  }
-  if (!json?.ok || !json?.url) {
-    throw new Error("Upload failed (invalid response)");
-  }
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${token}` },
+      body: fd,
+    });
 
-  return json;
+    const text = await res.text().catch(() => "");
+    let json: any = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {}
+
+    if (!res.ok) throw new Error(json?.message || `Upload failed (HTTP ${res.status})`);
+    if (!json?.ok || !json?.url) throw new Error("Upload failed (invalid response)");
+
+    return json;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function usePersistentChats(userId?: number, socket?: any) {
@@ -115,7 +126,7 @@ export function usePersistentChats(userId?: number, socket?: any) {
   // ✅ Unread badge state (chatId -> count)
   const [unreadCounts, setUnreadCounts] = useState<Map<number, number>>(new Map());
 
-  // ✅ Typing state: chatId -> true
+  // ✅ Typing
   const [typingByChat, setTypingByChat] = useState<Map<number, boolean>>(new Map());
   const typingTimeoutsRef = useRef<Map<number, any>>(new Map());
 
@@ -176,7 +187,7 @@ export function usePersistentChats(userId?: number, socket?: any) {
   }, []);
 
   // --------------------------
-  // Cutoff helpers (delete chat)
+  // Cutoff helpers
   // --------------------------
   const getCutoffMs = useCallback(
     (chatId: number): number => {
@@ -207,12 +218,12 @@ export function usePersistentChats(userId?: number, socket?: any) {
   );
 
   // --------------------------
-  // Load messages
+  // Load messages (nur wenn Chat geöffnet wird)
   // --------------------------
   const loadActiveMessages = useCallback(
     async (chatId: number) => {
       try {
-        const msgsRaw = await authedFetch(`/api/chats/${chatId}/messages`);
+        const msgsRaw = await authedFetch(`/api/chats/${chatId}/messages`, undefined, 15000);
         const msgs = filterByCutoff(chatId, Array.isArray(msgsRaw) ? msgsRaw : []);
 
         setActiveMessages((prev) => {
@@ -235,16 +246,15 @@ export function usePersistentChats(userId?: number, socket?: any) {
   );
 
   // --------------------------
-  // ✅ Load contacts + UNREAD MERGE FIX
+  // Load contacts (OHNE Messages Prefetch) + Unread MERGE
   // --------------------------
   const loadPersistentContacts = useCallback(async () => {
     if (!userId) return;
 
     setIsLoading(true);
     try {
-      const contacts = await authedFetch(`/api/chats/${userId}`);
+      const contacts = await authedFetch(`/api/chats/${userId}`, undefined, 15000);
 
-      // Server unread map
       const serverUnread = new Map<number, number>();
       (contacts || []).forEach((c: any) => {
         let unread = 0;
@@ -255,17 +265,13 @@ export function usePersistentChats(userId?: number, socket?: any) {
         if (unread > 0) serverUnread.set(c.id, unread);
       });
 
-      // ✅ MERGE: niemals lokale counts mit 0 überschreiben
+      // ✅ MERGE: lokal nicht mit 0 überschreiben
       setUnreadCounts((prev) => {
         const next = new Map(prev);
-
-        // update/raise from server
         for (const [chatId, cnt] of serverUnread.entries()) {
           const cur = next.get(chatId) || 0;
           next.set(chatId, Math.max(cur, cnt));
         }
-
-        // OPTIONAL: wenn server explizit 0 sendet, lassen wir local stehen.
         return next;
       });
 
@@ -276,43 +282,41 @@ export function usePersistentChats(userId?: number, socket?: any) {
       });
 
       setPersistentContacts(sorted);
-
-      // preload messages (optional)
-      for (const c of sorted) {
-        await loadActiveMessages(c.id);
-      }
     } catch (e) {
       console.error("❌ loadPersistentContacts:", e);
+      setPersistentContacts([]);
     } finally {
       setIsLoading(false);
     }
-  }, [userId, loadActiveMessages]);
+  }, [userId]);
 
   // --------------------------
-  // Select chat (mark-read)
+  // Select chat
   // --------------------------
   const selectChat = useCallback(
     async (chat: (Chat & { otherUser: User }) | null) => {
       setSelectedChat(chat);
       if (!chat || !userId) return;
 
-      // mark-read
       try {
-        await authedFetch(`/api/chats/${chat.id}/mark-read`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        });
+        await authedFetch(
+          `/api/chats/${chat.id}/mark-read`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          },
+          15000
+        );
       } catch {}
 
-      // ✅ clear local unread
+      // clear badge
       setUnreadCounts((prev) => {
         const next = new Map(prev);
         next.delete(chat.id);
         return next;
       });
 
-      // clear in list
       setPersistentContacts((prev) =>
         prev.map((c: any) => (c.id === chat.id ? { ...c, unreadCount: 0 } : c))
       );
@@ -343,7 +347,6 @@ export function usePersistentChats(userId?: number, socket?: any) {
 
       setSelectedChat((prev) => (prev?.id === chatId ? null : prev));
 
-      // clear badge
       setUnreadCounts((prev) => {
         const next = new Map(prev);
         next.delete(chatId);
@@ -351,7 +354,7 @@ export function usePersistentChats(userId?: number, socket?: any) {
       });
 
       try {
-        await authedFetch(`/api/chats/${chatId}/delete`, { method: "POST" });
+        await authedFetch(`/api/chats/${chatId}/delete`, { method: "POST" }, 15000);
       } catch (e) {
         console.error("deleteChat server failed:", e);
       }
@@ -392,11 +395,7 @@ export function usePersistentChats(userId?: number, socket?: any) {
       const tempId = Date.now();
 
       const optimisticContent =
-        type === "image" && file
-          ? URL.createObjectURL(file)
-          : type === "file" && file
-          ? file.name
-          : content;
+        type === "image" && file ? URL.createObjectURL(file) : type === "file" && file ? file.name : content;
 
       const optimistic: any = {
         id: tempId,
@@ -431,15 +430,12 @@ export function usePersistentChats(userId?: number, socket?: any) {
           fileName = up.originalName || file.name;
           fileSize = up.size || file.size;
 
-          // update optimistic
           setActiveMessages((prev) => {
             const next = new Map(prev);
             const arr = next.get(selectedChat.id) || [];
             next.set(
               selectedChat.id,
-              arr.map((m: any) =>
-                m.id === tempId ? { ...m, content: finalContent, fileName, fileSize } : m
-              )
+              arr.map((m: any) => (m.id === tempId ? { ...m, content: finalContent, fileName, fileSize } : m))
             );
             return next;
           });
@@ -466,16 +462,50 @@ export function usePersistentChats(userId?: number, socket?: any) {
         messageType: type,
         destructTimer: secs,
       };
+
       if (file) {
         wsPayload.fileName = fileName || file.name;
         wsPayload.fileSize = fileSize || file.size;
       }
 
-      const ok = socket.send(wsPayload);
-      if (!ok) console.warn("⚠️ WS not open -> queued");
+      socket.send(wsPayload);
     },
     [selectedChat, userId, socket, scheduleMessageDeletion]
   );
+
+  // --------------------------
+  // ✅ Presence update helper (user_status)
+  // --------------------------
+  const applyPresenceToState = useCallback((uid: number, isOnline: boolean) => {
+    const lastSeenIso = new Date().toISOString();
+
+    setPersistentContacts((prev) =>
+      prev.map((c: any) => {
+        if (c?.otherUser?.id !== uid) return c;
+        return {
+          ...c,
+          otherUser: {
+            ...c.otherUser,
+            isOnline,
+            lastSeen: isOnline ? c.otherUser?.lastSeen : lastSeenIso,
+          },
+        };
+      })
+    );
+
+    setSelectedChat((prev) => {
+      if (!prev?.otherUser?.id) return prev;
+      if (prev.otherUser.id !== uid) return prev;
+      return {
+        ...prev,
+        otherUser: {
+          ...prev.otherUser,
+          isOnline,
+          lastSeen: isOnline ? prev.otherUser?.lastSeen : lastSeenIso,
+        },
+      };
+    });
+  }, []);
 
   // --------------------------
   // Incoming WS
@@ -506,11 +536,17 @@ export function usePersistentChats(userId?: number, socket?: any) {
       }
     };
 
+    const onUserStatus = (data: any) => {
+      if (data?.type !== "user_status") return;
+      const uid = Number(data.userId) || 0;
+      if (!uid) return;
+      applyPresenceToState(uid, Boolean(data.isOnline));
+    };
+
     const onMsg = (data: any) => {
-      if (data?.type === "typing") {
-        onTyping(data);
-        return;
-      }
+      // handle specific types that sometimes arrive on "message"
+      if (data?.type === "typing") return onTyping(data);
+      if (data?.type === "user_status") return onUserStatus(data);
 
       if (data?.type !== "new_message" || !data.message) return;
       const m: any = data.message;
@@ -532,7 +568,7 @@ export function usePersistentChats(userId?: number, socket?: any) {
 
       scheduleMessageDeletion(m);
 
-      // ✅ Wenn Chat nicht offen -> Badge erhöhen
+      // ✅ Badge erhöhen wenn Chat nicht offen
       if (!selectedChat || selectedChat.id !== m.chatId) {
         setUnreadCounts((prev) => {
           const next = new Map(prev);
@@ -542,15 +578,16 @@ export function usePersistentChats(userId?: number, socket?: any) {
         });
       }
 
-      // refresh list ordering/lastMessage, aber Unread bleibt durch MERGE stabil
-      setTimeout(() => loadPersistentContacts(), 150);
+      setTimeout(() => loadPersistentContacts(), 200);
     };
 
     socket.on("typing", onTyping);
+    socket.on("user_status", onUserStatus);
     socket.on("message", onMsg);
 
     return () => {
       socket.off?.("typing", onTyping);
+      socket.off?.("user_status", onUserStatus);
       socket.off?.("message", onMsg);
     };
   }, [
@@ -562,6 +599,7 @@ export function usePersistentChats(userId?: number, socket?: any) {
     getCutoffMs,
     clearTypingTimer,
     setTypingState,
+    applyPresenceToState,
   ]);
 
   // --------------------------
