@@ -33,14 +33,8 @@ interface WhatsAppSidebarProps {
   isLoading: boolean;
   unreadCounts?: Map<number, number>;
   onRefreshChats?: () => void;
-
-  // ✅ Typing status je Chat
   typingByChat?: Map<number, boolean>;
-
-  // ✅ Delete chat
   onDeleteChat: (chatId: number) => Promise<void> | void;
-
-  // optional: block
   onBlockUser?: (userId: number) => Promise<void> | void;
 }
 
@@ -78,7 +72,6 @@ export default function WhatsAppSidebar({
   onBlockUser,
 }: WhatsAppSidebarProps) {
   const { t } = useLanguage();
-
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewChatDialog, setShowNewChatDialog] = useState(false);
 
@@ -94,17 +87,9 @@ export default function WhatsAppSidebar({
         credentials: "include",
         body: JSON.stringify({}),
       });
-
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        console.error("❌ mark-read failed:", res.status, txt);
-        return;
-      }
-
+      if (!res.ok) return;
       onRefreshChats?.();
-    } catch (err) {
-      console.error("❌ mark-read error:", err);
-    }
+    } catch {}
   };
 
   const handleBlockUser = async (userId: number) => {
@@ -115,18 +100,10 @@ export default function WhatsAppSidebar({
         credentials: "include",
         body: JSON.stringify({}),
       });
-
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        console.error("❌ block user failed:", res.status, txt);
-        return;
-      }
-
+      if (!res.ok) return;
       onBlockUser?.(userId);
       onRefreshChats?.();
-    } catch (err) {
-      console.error("❌ Error blocking user:", err);
-    }
+    } catch {}
   };
 
   const formatLastMessageTime = (date: string | Date) => {
@@ -152,7 +129,6 @@ export default function WhatsAppSidebar({
   return (
     <>
       <div className="w-full md:w-80 bg-background border-r border-border flex flex-col h-full md:h-screen">
-        {/* Header */}
         <div className="p-4 bg-primary/5 dark:bg-primary/10 border-b border-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -161,16 +137,10 @@ export default function WhatsAppSidebar({
                   {currentUser.username.charAt(0).toUpperCase()}
                 </span>
               </div>
-
               <div>
                 <h2 className="font-semibold text-foreground text-lg">{currentUser.username}</h2>
                 <div className="flex items-center space-x-2">
-                  <div
-                    className={cn(
-                      "w-2 h-2 rounded-full transition-colors",
-                      isConnected ? "bg-green-500" : "bg-red-500"
-                    )}
-                  />
+                  <div className={cn("w-2 h-2 rounded-full", isConnected ? "bg-green-500" : "bg-red-500")} />
                   <span className="text-xs text-muted-foreground font-medium">
                     {isConnected ? t("online") : t("connecting")}
                   </span>
@@ -179,37 +149,19 @@ export default function WhatsAppSidebar({
             </div>
 
             <div className="flex space-x-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowNewChatDialog(true)}
-                className="text-muted-foreground hover:text-foreground hover:bg-primary/10"
-              >
+              <Button variant="ghost" size="sm" onClick={() => setShowNewChatDialog(true)}>
                 <Plus className="w-5 h-5" />
               </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onOpenSettings}
-                className="text-muted-foreground hover:text-foreground hover:bg-primary/10"
-              >
+              <Button variant="ghost" size="sm" onClick={onOpenSettings}>
                 <Settings className="w-5 h-5" />
               </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-              >
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
                 <LogOut className="w-5 h-5" />
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Search */}
         <div className="p-3 bg-background">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10 pointer-events-none" />
@@ -223,24 +175,11 @@ export default function WhatsAppSidebar({
           </div>
         </div>
 
-        {/* Chat List */}
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
             <div className="p-6 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
               <p className="text-muted-foreground">{t("loadingChats")}</p>
-            </div>
-          ) : filteredChats.length === 0 ? (
-            <div className="p-8 text-center">
-              <div className="w-20 h-20 bg-muted/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MessageCircle className="w-10 h-10 text-muted-foreground" />
-              </div>
-              <h3 className="font-semibold text-foreground mb-2">{t("noChats")}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{t("noChatDescription")}</p>
-              <Button variant="outline" size="sm" onClick={() => setShowNewChatDialog(true)} className="gap-2">
-                <Plus className="w-4 h-4" />
-                {t("newChat")}
-              </Button>
             </div>
           ) : (
             <div>
@@ -248,14 +187,12 @@ export default function WhatsAppSidebar({
                 const apiUnreadCount = chat.unreadCount || 0;
                 const mapUnreadCount = unreadCounts?.get(chat.id) || 0;
                 const finalUnreadCount = Math.max(apiUnreadCount, mapUnreadCount);
-
-                const isTyping = Boolean(typingByChat?.get(chat.id));
-
-                // ✅ Badge Text (9+)
                 const badgeText = finalUnreadCount > 9 ? "9+" : String(finalUnreadCount);
 
-                // Zeit: wenn lastMessage da ist, sonst leer
+                const isTyping = Boolean(typingByChat?.get(chat.id));
                 const timeText = chat.lastMessage ? formatLastMessageTime(chat.lastMessage.createdAt) : "";
+
+                const isOnline = Boolean((chat as any)?.otherUser?.isOnline);
 
                 return (
                   <div
@@ -270,37 +207,35 @@ export default function WhatsAppSidebar({
                     }}
                   >
                     <div className="flex items-center space-x-3">
-                      {/* Avatar */}
                       <div className="relative flex-shrink-0">
                         <div className="w-14 h-14 bg-gradient-to-br from-primary/20 via-primary/30 to-primary/40 rounded-full flex items-center justify-center shadow-sm">
                           <span className="text-primary font-bold text-xl">
                             {chat.otherUser.username.charAt(0).toUpperCase()}
                           </span>
                         </div>
-                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background shadow-sm"></div>
+
+                        {/* ✅ online/offline */}
+                        <div
+                          className={cn(
+                            "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-background shadow-sm",
+                            isOnline ? "bg-green-500" : "bg-muted-foreground/60"
+                          )}
+                        />
                       </div>
 
-                      {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between mb-1">
                           <h3 className="font-semibold text-base text-foreground truncate">
                             {chat.otherUser.username}
                           </h3>
 
-                          {/* ✅ Rechte Spalte: Zeit + Badge darunter */}
                           <div className="flex flex-col items-end flex-shrink-0">
-                            {/* Zeit nur anzeigen wenn nicht typing */}
                             {!isTyping && timeText ? (
-                              <span className="text-xs text-muted-foreground font-medium">
-                                {timeText}
-                              </span>
+                              <span className="text-xs text-muted-foreground font-medium">{timeText}</span>
                             ) : (
-                              <span className="text-xs text-muted-foreground font-medium opacity-0">
-                                --
-                              </span>
+                              <span className="text-xs text-muted-foreground font-medium opacity-0">--</span>
                             )}
 
-                            {/* ✅ Unread Badge unter "jetzt" */}
                             {finalUnreadCount > 0 ? (
                               <div className="mt-1 min-w-[18px] h-[18px] px-1 rounded-full bg-green-500 text-white text-[11px] font-semibold flex items-center justify-center shadow-sm">
                                 {badgeText}
@@ -313,7 +248,6 @@ export default function WhatsAppSidebar({
 
                         <div className="flex items-center justify-between">
                           {isTyping ? (
-                            // ✅ nur Punkte
                             <div className="flex items-center text-sm truncate flex-1">
                               <div className="typing-indicator scale-75 origin-left">
                                 <div className="typing-dot" />
@@ -334,7 +268,6 @@ export default function WhatsAppSidebar({
                         </div>
                       </div>
 
-                      {/* Menu */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -380,7 +313,6 @@ export default function WhatsAppSidebar({
         </div>
       </div>
 
-      {/* New Chat Modal */}
       <NewChatModal
         open={showNewChatDialog}
         onOpenChange={setShowNewChatDialog}
