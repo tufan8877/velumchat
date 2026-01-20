@@ -29,30 +29,49 @@ export default function ChatView({
   onBackToList,
 }: ChatViewProps) {
   const [messageInput, setMessageInput] = useState("");
-  const [destructTimer, setDestructTimer] = useState("300"); // seconds
+  const [destructTimer, setDestructTimer] = useState("300");
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const localTypingRef = useRef(false);
   const typingIdleTimerRef = useRef<any>(null);
   const typingThrottleRef = useRef<number>(0);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
 
-  const scrollToBottom = (smooth = true) => {
-    if (!messagesEndRef.current) return;
-    messagesEndRef.current.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "end" });
+  const isNearBottom = () => {
+    const el = scrollRef.current;
+    if (!el) return true;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    return distance < 140;
   };
 
+  const scrollToBottom = (smooth = true) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
+  };
+
+  // ✅ Header/Start: immer oben korrekt (Safari scroll restoration)
   useEffect(() => {
-    if (messages.length > 0) {
-      [0, 80, 180].forEach((d) => setTimeout(() => scrollToBottom(d !== 0), d));
+    window.scrollTo(0, 0);
+    scrollRef.current && (scrollRef.current.scrollTop = scrollRef.current.scrollTop);
+  }, []);
+
+  // ✅ Wenn neue Messages kommen und du unten bist -> autoscroll
+  useEffect(() => {
+    if (messages.length === 0) return;
+    if (isNearBottom()) {
+      setTimeout(() => scrollToBottom(true), 0);
     }
   }, [messages]);
 
+  // ✅ Typing-Bubble: nur scrollen, wenn du unten bist
   useEffect(() => {
-    if (selectedChat) setTimeout(() => scrollToBottom(false), 120);
-  }, [selectedChat]);
+    if (isOtherTyping && isNearBottom()) {
+      setTimeout(() => scrollToBottom(true), 0);
+    }
+  }, [isOtherTyping]);
 
   const getTimerSeconds = () => {
     const s = parseInt(destructTimer, 10);
@@ -60,8 +79,7 @@ export default function ChatView({
   };
 
   const sendTypingSafe = (state: boolean) => {
-    if (!isConnected) return;
-    if (!selectedChat) return;
+    if (!isConnected || !selectedChat) return;
     try {
       onTyping(state);
     } catch {}
@@ -121,7 +139,7 @@ export default function ChatView({
     stopTyping();
     onSendMessage(text, "text", getTimerSeconds());
     setMessageInput("");
-    setTimeout(() => scrollToBottom(true), 50);
+    setTimeout(() => scrollToBottom(true), 30);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -151,6 +169,7 @@ export default function ChatView({
     else onSendMessage(file.name, "file", secs, file);
 
     if (fileInputRef.current) fileInputRef.current.value = "";
+    setTimeout(() => scrollToBottom(true), 30);
   };
 
   const handleCameraCapture = () => {
@@ -169,13 +188,6 @@ export default function ChatView({
       handleFileUpload({ target: { files: [f] } } as any);
     };
     cameraInput.click();
-  };
-
-  const formatDestructTimer = (seconds: number) => {
-    if (seconds < 60) return `${seconds}s`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
-    return `${Math.floor(seconds / 86400)}d`;
   };
 
   if (!selectedChat) {
@@ -197,13 +209,20 @@ export default function ChatView({
   const headerLetter = (selectedChat.otherUser.username || "U").charAt(0).toUpperCase();
   const otherOnline = Boolean((selectedChat as any)?.otherUser?.isOnline);
 
-  // Status: Wenn WS nicht connected -> "connecting", sonst online/offline
   const statusDotClass = !isConnected ? "bg-red-500" : otherOnline ? "bg-green-500" : "bg-muted-foreground/60";
   const statusText = !isConnected ? t("connecting") : otherOnline ? t("online") : t("offline");
 
+  const formatDestructTimer = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+    return `${Math.floor(seconds / 86400)}d`;
+  };
+
   return (
-    <div className="flex-1 flex flex-col h-[100dvh] bg-background chat-shell no-x-scroll">
-      <div className="bg-background border-b border-border p-3 md:p-4 flex-shrink-0 chat-header">
+    <div className="flex-1 flex flex-col min-h-0 bg-background chat-shell">
+      {/* ✅ STICKY Header */}
+      <div className="sticky top-0 z-30 bg-background border-b border-border p-3 md:p-4 flex-shrink-0">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <Button
@@ -216,17 +235,15 @@ export default function ChatView({
               <ArrowLeft className="w-4 h-4" />
             </Button>
 
-            <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center flex-shrink-0 avatar-mobile">
+            <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-muted-foreground font-semibold">{headerLetter}</span>
             </div>
 
             <div className="min-w-0">
               <h3 className="font-semibold text-foreground truncate">{selectedChat.otherUser.username}</h3>
-
               <div className="flex items-center gap-2 text-sm min-w-0">
                 <div className={`w-2 h-2 rounded-full ${statusDotClass}`} />
                 <span className={otherOnline ? "text-green-400" : "text-muted-foreground"}>{statusText}</span>
-
                 <span className="text-muted-foreground">•</span>
                 <Lock className="w-3 h-3 text-accent flex-shrink-0" />
                 <span className="text-muted-foreground truncate">{t("realTimeChat")}</span>
@@ -262,8 +279,10 @@ export default function ChatView({
         </div>
       </div>
 
+      {/* ✅ Scroll area */}
       <div
-        className="chat-messages custom-scrollbar px-3 md:px-4 py-3 space-y-3"
+        ref={scrollRef}
+        className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-3 md:px-4 py-3 space-y-3"
         style={{ paddingBottom: "calc(92px + env(safe-area-inset-bottom))" }}
       >
         <div className="text-center">
@@ -282,7 +301,7 @@ export default function ChatView({
             <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-muted-foreground text-sm font-semibold">{headerLetter}</span>
             </div>
-            <div className="bg-surface rounded-2xl rounded-tl-md p-3">
+            <div className="bg-muted/30 border border-border/40 rounded-2xl rounded-tl-md p-3">
               <div className="typing-indicator">
                 <div className="typing-dot" />
                 <div className="typing-dot" style={{ animationDelay: "0.1s" }} />
@@ -295,6 +314,7 @@ export default function ChatView({
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Input fixed */}
       <div className="chat-input-fixed chat-input-area">
         <div className="px-2 py-2 flex items-end gap-2 flex-nowrap">
           <Button
