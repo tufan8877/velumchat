@@ -57,6 +57,19 @@ function authHeaders(extra?: Record<string, string>) {
   };
 }
 
+function toBool(v: any): boolean {
+  if (v === true) return true;
+  if (v === false) return false;
+  if (v === 1 || v === "1") return true;
+  if (v === 0 || v === "0") return false;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (s === "true") return true;
+    if (s === "false") return false;
+  }
+  return false;
+}
+
 export default function WhatsAppSidebar({
   currentUser,
   chats,
@@ -114,7 +127,7 @@ export default function WhatsAppSidebar({
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return t("now"); // "jetzt"
+    if (diffMins < 1) return t("now");
     if (diffMins < 60) return `${diffMins}m`;
     if (diffHours < 24) return `${diffHours}h`;
     if (diffDays < 7) return `${diffDays}d`;
@@ -178,7 +191,7 @@ export default function WhatsAppSidebar({
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
             <div className="p-6 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
+              <div className="animate-spin rounded-full h-8 h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
               <p className="text-muted-foreground">{t("loadingChats")}</p>
             </div>
           ) : (
@@ -192,7 +205,7 @@ export default function WhatsAppSidebar({
                 const isTyping = Boolean(typingByChat?.get(chat.id));
                 const timeText = chat.lastMessage ? formatLastMessageTime(chat.lastMessage.createdAt) : "";
 
-                const isOnline = Boolean((chat as any)?.otherUser?.isOnline);
+                const isOnline = toBool((chat as any)?.otherUser?.isOnline);
 
                 return (
                   <div
@@ -214,7 +227,7 @@ export default function WhatsAppSidebar({
                           </span>
                         </div>
 
-                        {/* ✅ online/offline */}
+                        {/* ✅ EINZIGER Presence-Punkt: gruen/grau */}
                         <div
                           className={cn(
                             "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-background shadow-sm",
@@ -256,9 +269,7 @@ export default function WhatsAppSidebar({
                               </div>
                             </div>
                           ) : chat.lastMessage ? (
-                            <p className="text-sm text-muted-foreground truncate flex-1">
-                              {chat.lastMessage.content}
-                            </p>
+                            <p className="text-sm text-muted-foreground truncate flex-1">{chat.lastMessage.content}</p>
                           ) : (
                             <p className="text-sm text-muted-foreground/70 italic flex items-center gap-1">
                               <KeyRound className="w-3 h-3" />
