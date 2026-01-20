@@ -45,32 +45,22 @@ export default function ChatView({
     const el = scrollRef.current;
     if (!el) return true;
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    return distance < 140;
+    return distance < 160;
   };
 
   const scrollToBottom = (smooth = true) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "end" });
   };
 
-  // ✅ Header/Start: immer oben korrekt (Safari scroll restoration)
-  useEffect(() => {
-    window.scrollTo(0, 0);
-    scrollRef.current && (scrollRef.current.scrollTop = scrollRef.current.scrollTop);
-  }, []);
-
-  // ✅ Wenn neue Messages kommen und du unten bist -> autoscroll
+  // ✅ Autoscroll wenn du unten bist und neue Messages kommen
   useEffect(() => {
     if (messages.length === 0) return;
-    if (isNearBottom()) {
-      setTimeout(() => scrollToBottom(true), 0);
-    }
+    if (isNearBottom()) setTimeout(() => scrollToBottom(true), 0);
   }, [messages]);
 
-  // ✅ Typing-Bubble: nur scrollen, wenn du unten bist
+  // ✅ Typing bubble -> nur wenn du unten bist
   useEffect(() => {
-    if (isOtherTyping && isNearBottom()) {
-      setTimeout(() => scrollToBottom(true), 0);
-    }
+    if (isOtherTyping && isNearBottom()) setTimeout(() => scrollToBottom(true), 0);
   }, [isOtherTyping]);
 
   const getTimerSeconds = () => {
@@ -190,6 +180,13 @@ export default function ChatView({
     cameraInput.click();
   };
 
+  const formatDestructTimer = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+    return `${Math.floor(seconds / 86400)}d`;
+  };
+
   if (!selectedChat) {
     return (
       <div className="flex-1 flex items-center justify-center bg-background text-foreground">
@@ -212,17 +209,11 @@ export default function ChatView({
   const statusDotClass = !isConnected ? "bg-red-500" : otherOnline ? "bg-green-500" : "bg-muted-foreground/60";
   const statusText = !isConnected ? t("connecting") : otherOnline ? t("online") : t("offline");
 
-  const formatDestructTimer = (seconds: number) => {
-    if (seconds < 60) return `${seconds}s`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
-    return `${Math.floor(seconds / 86400)}d`;
-  };
-
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-background chat-shell">
-      {/* ✅ STICKY Header */}
-      <div className="sticky top-0 z-30 bg-background border-b border-border p-3 md:p-4 flex-shrink-0">
+    // ✅ Wichtig: min-h-0 damit nur der Messages-Bereich scrollt (iOS Safari Fix)
+    <div className="flex-1 flex flex-col min-h-0 bg-background">
+      {/* ✅ FIX: Header ist NICHT Teil des scrollenden Bereichs */}
+      <div className="flex-shrink-0 bg-background border-b border-border px-3 py-3 md:px-4 md:py-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <Button
@@ -279,7 +270,7 @@ export default function ChatView({
         </div>
       </div>
 
-      {/* ✅ Scroll area */}
+      {/* ✅ Messages Bereich ist der EINZIGE der scrollt */}
       <div
         ref={scrollRef}
         className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-3 md:px-4 py-3 space-y-3"
