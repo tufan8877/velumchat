@@ -52,13 +52,11 @@ export default function ChatView({
     messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "end" });
   };
 
-  // ✅ Autoscroll wenn du unten bist und neue Messages kommen
   useEffect(() => {
     if (messages.length === 0) return;
     if (isNearBottom()) setTimeout(() => scrollToBottom(true), 0);
   }, [messages]);
 
-  // ✅ Typing bubble -> nur wenn du unten bist
   useEffect(() => {
     if (isOtherTyping && isNearBottom()) setTimeout(() => scrollToBottom(true), 0);
   }, [isOtherTyping]);
@@ -189,7 +187,7 @@ export default function ChatView({
 
   if (!selectedChat) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-background text-foreground">
+      <div className="flex-1 flex items-center justify-center bg-background text-foreground w-full overflow-x-hidden">
         <div className="text-center space-y-4 p-8">
           <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
             <Shield className="w-8 h-8 text-primary" />
@@ -210,11 +208,11 @@ export default function ChatView({
   const statusText = !isConnected ? t("connecting") : otherOnline ? t("online") : t("offline");
 
   return (
-    // ✅ Wichtig: min-h-0 damit nur der Messages-Bereich scrollt (iOS Safari Fix)
-    <div className="flex-1 flex flex-col min-h-0 bg-background">
-      {/* ✅ FIX: Header ist NICHT Teil des scrollenden Bereichs */}
-      <div className="flex-shrink-0 bg-background border-b border-border px-3 py-3 md:px-4 md:py-4">
-        <div className="flex items-center justify-between gap-2">
+    // ✅ Wichtig: overflow-x-hidden verhindert seitliches Shiften
+    <div className="flex-1 flex flex-col min-h-0 w-full overflow-x-hidden bg-background">
+      {/* Header (nicht scrollend) */}
+      <div className="flex-shrink-0 w-full bg-background border-b border-border px-3 py-3 md:px-4 md:py-4">
+        <div className="flex items-center justify-between gap-2 w-full">
           <div className="flex items-center gap-2 min-w-0">
             <Button
               variant="ghost"
@@ -270,11 +268,10 @@ export default function ChatView({
         </div>
       </div>
 
-      {/* ✅ Messages Bereich ist der EINZIGE der scrollt */}
+      {/* Messages scrollen */}
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-3 md:px-4 py-3 space-y-3"
-        style={{ paddingBottom: "calc(92px + env(safe-area-inset-bottom))" }}
+        className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden custom-scrollbar px-3 md:px-4 py-3 space-y-3"
       >
         <div className="text-center">
           <div className="inline-flex items-center gap-2 bg-surface rounded-full px-4 py-2 text-sm text-text-muted">
@@ -305,9 +302,9 @@ export default function ChatView({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input fixed */}
-      <div className="chat-input-fixed chat-input-area">
-        <div className="px-2 py-2 flex items-end gap-2 flex-nowrap">
+      {/* ✅ Input NICHT fixed -> sticky (kein iOS Seitenshift) */}
+      <div className="sticky bottom-0 w-full bg-background border-t border-border">
+        <div className="px-2 pt-2 flex items-end gap-2 flex-nowrap">
           <Button
             variant="ghost"
             size="icon"
@@ -357,7 +354,10 @@ export default function ChatView({
           </Button>
         </div>
 
-        <div className="px-3 pb-[calc(10px+env(safe-area-inset-bottom))] text-xs text-text-muted flex items-center justify-between">
+        <div
+          className="px-3 pb-[calc(10px+env(safe-area-inset-bottom))] pt-1 text-xs text-text-muted flex items-center justify-between"
+          style={{ paddingBottom: "calc(10px + env(safe-area-inset-bottom))" }}
+        >
           <div className="flex items-center gap-2 min-w-0">
             <Lock className="w-3 h-3 text-accent flex-shrink-0" />
             <span className="truncate">{t("encryptionEnabled")}</span>
