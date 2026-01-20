@@ -87,6 +87,8 @@ function requireAuth(req: any, res: any, next: any) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+
+  // ✅ Online clients
   const connectedClients = new Map<number, ConnectedClient>();
 
   function broadcast(message: any, excludeUserId?: number) {
@@ -180,7 +182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ---- Protected endpoints (requireAuth) ----
+  // ---- Protected endpoints ----
 
   app.get("/api/search-users", requireAuth, async (req: any, res) => {
     try {
@@ -200,7 +202,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const participant1Id = toInt(req.body?.participant1Id, 0);
       const participant2Id = toInt(req.body?.participant2Id, 0);
 
-      // ✅ only allow the logged-in user to be participant1
       if (participant1Id !== req.auth.userId) {
         return safeJson(res, 403, { ok: false, message: "Forbidden" });
       }
@@ -214,7 +215,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const chat = await storage.getOrCreateChatByParticipants(participant1Id, participant2Id);
 
-      // OPTIONAL: wenn er vorher gelöscht war, wieder sichtbar machen
       try {
         const wasDeleted = await storage.isChatDeletedForUser(participant1Id, chat.id);
         if (wasDeleted) await storage.reactivateChatForUser(participant1Id, chat.id);
@@ -229,11 +229,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/chats/:userId", requireAuth, async (req: any, res) => {
     try {
-      const userId = toInt(req.params.userId, 0);
-      if (userId !== req.auth.userId) {
+      const userIdParam = toInt(req.params.userId, 0);
+      if (userIdParam !== req.auth.userId) {
         return safeJson(res, 403, { ok: false, message: "Forbidden" });
       }
-      const chats = await storage.getChatsByUserId(userId);
+      const chats = await storage.getChatsByUserId(userIdParam);
       return res.json(chats);
     } catch (err) {
       console.error("Get chats error:", err);
@@ -241,19 +241,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * ✅ FIX: Wenn User Chat gelöscht hat (deletedAt),
-   * dürfen alte Nachrichten NIE wieder erscheinen.
-   * Wir filtern serverseitig: createdAt > deletedAt
-   */
+  // Messages (server filters deletedAt)
   app.get("/api/chats/:chatId/messages", requireAuth, async (req: any, res) => {
     try {
       const chatId = toInt(req.params.chatId, 0);
       if (!chatId) return safeJson(res, 400, { ok: false, message: "Invalid chatId" });
 
-      const userId = req.auth.userId;
+      const userIdParam = req.auth.userId;
 
-      const deletedAt = await storage.getDeletedAtForUserChat(userId, chatId);
+      const deletedAt = await storage.getDeletedAtForUserChat(userIdParam, chatId);
       const msgs = await storage.getMessagesByChat(chatId);
 
       const filtered = deletedAt
@@ -270,10 +266,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chats/:chatId/mark-read", requireAuth, async (req: any, res) => {
     try {
       const chatId = toInt(req.params.chatId, 0);
-      const userId = req.auth.userId;
+      const userIdParam = req.auth.userId;
       if (!chatId) return safeJson(res, 400, { ok: false, message: "chatId required" });
 
-      await storage.resetUnreadCount(chatId, userId);
+      await storage.resetUnreadCount(chatId, userIdParam);
       return res.json({ ok: true, success: true });
     } catch (err) {
       console.error("Mark read error:", err);
@@ -284,10 +280,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chats/:chatId/delete", requireAuth, async (req: any, res) => {
     try {
       const chatId = toInt(req.params.chatId, 0);
-      const userId = req.auth.userId;
+      const userIdParam = req.auth.userId;
       if (!chatId) return safeJson(res, 400, { ok: false, message: "chatId required" });
 
-      await storage.deleteChatForUser(userId, chatId);
+      await storage.deleteChatForUser(userIdParam, chatId);
       return res.json({ ok: true, success: true });
     } catch (err) {
       console.error("Delete chat error:", err);
@@ -362,7 +358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }, 300000);
 
   wss.on("connection", (ws: any, req: any) => {
-    // ✅ FIX: Origin-Check so, dass Render-Domain automatisch erlaubt ist
+    // ✅ Origin-Check: Render Domain automatisch erlaubt
     const origin = req.headers.origin as string | undefined;
 
     const allowedOrigins = new Set<string>([
@@ -390,12 +386,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
 
-    // Wenn origin fehlt (manche Clients/Tools), nicht blocken.
     if (origin && !(sameHost || allowedOrigins.has(origin))) {
       ws.close(1008, "Origin not allowed");
       return;
     }
 
+    // IP limit
     const xff = req.headers["x-forwarded-for"];
     const ip =
       typeof xff === "string" && xff.length > 0
@@ -453,8 +449,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           connectedClients.set(joinedUserId, { ws, userId: joinedUserId });
           await storage.updateUserOnlineStatus(joinedUserId, true);
 
+          // ✅ 1) Join bestätigen
           ws.send(JSON.stringify({ type: "join_confirmed", ok: true, userId: joinedUserId }));
+
+          // ✅ 2) Initial-Liste: alle aktuell online User IDs schicken
+          const onlineUserIds = Array.from(connectedClients.keys());
+          ws.send(JSON.stringify({ type: "online_users", userIds: onlineUserIds }));
+
+          // ✅ 3) Broadcast: dieser User online
           broadcast({ type: "user_status", userId: joinedUserId, isOnline: true }, joinedUserId);
+
           return;
         }
 
@@ -518,7 +522,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const chat = await storage.getOrCreateChatByParticipants(senderId, receiverId);
 
-            // ✅ FIX: re-activate deleted chat for receiver AND sender if needed
             const wasDeletedReceiver = await storage.isChatDeletedForUser(receiverId, chat.id);
             if (wasDeletedReceiver) await storage.reactivateChatForUser(receiverId, chat.id);
 
