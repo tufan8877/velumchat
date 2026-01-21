@@ -39,7 +39,7 @@ function safeJson(res: any, status: number, payload: any) {
 function normalizeDestructTimerSeconds(raw: any) {
   let t = toInt(raw, 86400);
 
-  // falls mal ms geliefert wird
+  // falls ms geliefert wird
   if (t > 100000) t = Math.floor(t / 1000);
 
   if (t < 5) t = 5;
@@ -87,8 +87,6 @@ function requireAuth(req: any, res: any, next: any) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
-
-  // ✅ Online clients
   const connectedClients = new Map<number, ConnectedClient>();
 
   function broadcast(message: any, excludeUserId?: number) {
@@ -179,6 +177,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("LOGIN ERROR:", err);
       return safeJson(res, 500, { ok: false, message: err?.message || "Login failed" });
+    }
+  });
+
+  // ✅ Update username (auth, only self) + WS broadcast
+  app.patch("/api/users/:userId", requireAuth, async (req: any, res) => {
+    try {
+      const userIdParam = toInt(req.params.userId, 0);
+      if (!userIdParam) return safeJson(res, 400, { ok: false, message: "Invalid userId" });
+
+      if (userIdParam !== req.auth.userId) {
+        return safeJson(res, 403, { ok: false, message: "Forbidden" });
+      }
+
+      const username = String(req.body?.username || "").trim();
+      if (!username) return safeJson(res, 400, { ok: false, message: "Username required" });
+      if (username.length < 2 || username.length > 24) {
+        return safeJson(res, 400, { ok: false, message: "Username length must be 2–24" });
+      }
+      if (!/^[a-zA-Z0-9_ .-]+$/.test(username)) {
+        return safeJson(res, 400, { ok: false, message: "Username contains invalid characters" });
+      }
+
+      const existing = await storage.getUserByUsername(username);
+      if (existing && (existing as any).id !== userIdParam) {
+        return safeJson(res, 409, { ok: false, message: "Username already exists" });
+      }
+
+      // Requires storage.updateUsername (recommended)
+      const s: any = storage as any;
+      let updated: any = null;
+
+      if (typeof s.updateUsername === "function") {
+        updated = await s.updateUsername(userIdParam, username);
+      } else if (typeof s.updateUser === "function") {
+        updated = await s.updateUser(userIdParam, { username });
+      } else {
+        // fallback: try to fetch user if no return
+        throw new Error("Storage missing updateUsername/updateUser. Add updateUsername to storage.");
+      }
+
+      broadcast({ type: "profile_updated", userId: userIdParam, username });
+
+      return res.json({
+        ok: true,
+        user: updated ? { id: updated.id, username: updated.username } : { id: userIdParam, username },
+      });
+    } catch (err: any) {
+      console.error("UPDATE USERNAME ERROR:", err);
+      return safeJson(res, 500, { ok: false, message: err?.message || "Failed to update username" });
     }
   });
 
@@ -358,7 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }, 300000);
 
   wss.on("connection", (ws: any, req: any) => {
-    // ✅ Origin-Check: Render Domain automatisch erlaubt
+    // ✅ Origin-Check
     const origin = req.headers.origin as string | undefined;
 
     const allowedOrigins = new Set<string>([
@@ -429,7 +476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
 
-        // ✅ JOIN requires token
+        // ✅ JOIN
         if (parsed?.type === "join") {
           const token = String(parsed?.token || "");
           if (!token) {
@@ -449,14 +496,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           connectedClients.set(joinedUserId, { ws, userId: joinedUserId });
           await storage.updateUserOnlineStatus(joinedUserId, true);
 
-          // ✅ 1) Join bestätigen
           ws.send(JSON.stringify({ type: "join_confirmed", ok: true, userId: joinedUserId }));
 
-          // ✅ 2) Initial-Liste: alle aktuell online User IDs schicken
+          // ✅ Initial list of online users
           const onlineUserIds = Array.from(connectedClients.keys());
           ws.send(JSON.stringify({ type: "online_users", userIds: onlineUserIds }));
 
-          // ✅ 3) Broadcast: dieser User online
+          // ✅ Broadcast user online
           broadcast({ type: "user_status", userId: joinedUserId, isOnline: true }, joinedUserId);
 
           return;
