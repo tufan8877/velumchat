@@ -117,7 +117,7 @@ async function uploadFile(file: File, timeoutMs = 30000): Promise<{
  */
 
 function cutoffsKey(userId: number) {
-  return `chat_cutoffs_v2_${userId}`;
+  return `chat_cutoffs_v3_${userId}`;
 }
 
 function loadCutoffs(userId: number): Record<string, string> {
@@ -153,11 +153,14 @@ function filterByCutoff(chatId: number, msgs: any[], cutoffIso?: string) {
 
 export function usePersistentChats(userId?: number, socket?: any) {
   const [persistentContacts, setPersistentContacts] = useState<
-    Array<Chat & { otherUser: User; unreadCount?: number }>
+    Array<Chat & { otherUser: User; lastMessage?: any; unreadCount?: number }>
   >([]);
   const [activeMessages, setActiveMessages] = useState<Map<number, any[]>>(new Map());
   const [selectedChat, setSelectedChat] = useState<(Chat & { otherUser: User }) | null>(null);
+
+  // ✅ IMPORTANT: isLoading only for FIRST load / manual refresh (NOT for background updates)
   const [isLoading, setIsLoading] = useState(false);
+  const firstLoadDoneRef = useRef(false);
 
   // chatId -> count
   const [unreadCounts, setUnreadCounts] = useState<Map<number, number>>(new Map());
@@ -245,65 +248,108 @@ export function usePersistentChats(userId?: number, socket?: any) {
     });
   }, []);
 
-  // if WS disconnects -> all grey
   useEffect(() => {
     if (!socket?.isConnected) setAllOffline();
   }, [socket?.isConnected, setAllOffline]);
 
   /**
    * ============================
-   * Load Contacts
+   * Chat list local update (FAST)
    * ============================
    */
 
-  const loadPersistentContacts = useCallback(async () => {
-    if (!userId) return;
+  const bumpChatToTopAndUpdateLast = useCallback(
+    (chatId: number, lastMessage: any) => {
+      setPersistentContacts((prev) => {
+        const idx = prev.findIndex((c: any) => c.id === chatId);
+        if (idx === -1) return prev;
 
-    setIsLoading(true);
-    try {
-      const contacts = await authedFetch(`/api/chats/${userId}`, undefined, 15000);
+        const current = prev[idx];
+        const updated = {
+          ...current,
+          lastMessage,
+          lastMessageTimestamp: lastMessage?.createdAt || new Date().toISOString(),
+        };
 
-      // server unread map (optional)
-      const serverUnread = new Map<number, number>();
-      (contacts || []).forEach((c: any) => {
-        let unread = 0;
-        if (userId === c.participant1Id) unread = c.unreadCount1 || 0;
-        else if (userId === c.participant2Id) unread = c.unreadCount2 || 0;
-        c.unreadCount = unread;
-        if (unread > 0) serverUnread.set(c.id, unread);
-      });
-
-      // merge: never overwrite local counts with 0
-      setUnreadCounts((prev) => {
-        const next = new Map(prev);
-        for (const [chatId, cnt] of serverUnread.entries()) {
-          const cur = next.get(chatId) || 0;
-          next.set(chatId, Math.max(cur, cnt));
-        }
+        // move to top
+        const next = [updated, ...prev.filter((_, i) => i !== idx)];
         return next;
       });
+    },
+    []
+  );
 
-      const sorted = (contacts || []).sort((a: any, b: any) => {
-        const aTime = a.lastMessage?.createdAt || a.lastMessageTimestamp || a.createdAt;
-        const bTime = b.lastMessage?.createdAt || b.lastMessageTimestamp || b.createdAt;
-        return new Date(bTime).getTime() - new Date(aTime).getTime();
-      });
+  /**
+   * ============================
+   * Load Contacts (FIRST load shows spinner; background refresh silent)
+   * ============================
+   */
 
-      // apply presence from ref; default offline
-      const withPresence = (sorted || []).map((c: any) => {
-        const oid = Number(c?.otherUser?.id) || 0;
-        const online = oid ? Boolean(presenceRef.current.get(oid)) : false;
-        return { ...c, otherUser: { ...c.otherUser, isOnline: online } };
-      });
+  const fetchContacts = useCallback(
+    async (showSpinner: boolean) => {
+      if (!userId) return;
 
-      setPersistentContacts(withPresence);
-    } catch (e) {
-      console.error("❌ loadPersistentContacts:", e);
-      setPersistentContacts([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userId]);
+      if (showSpinner) setIsLoading(true);
+
+      try {
+        const contacts = await authedFetch(`/api/chats/${userId}`, undefined, 15000);
+
+        // unread from server (optional)
+        const serverUnread = new Map<number, number>();
+        (contacts || []).forEach((c: any) => {
+          let unread = 0;
+          if (userId === c.participant1Id) unread = c.unreadCount1 || 0;
+          else if (userId === c.participant2Id) unread = c.unreadCount2 || 0;
+          c.unreadCount = unread;
+          if (unread > 0) serverUnread.set(c.id, unread);
+        });
+
+        // merge unread: never overwrite local with 0
+        setUnreadCounts((prev) => {
+          const next = new Map(prev);
+          for (const [chatId, cnt] of serverUnread.entries()) {
+            const cur = next.get(chatId) || 0;
+            next.set(chatId, Math.max(cur, cnt));
+          }
+          return next;
+        });
+
+        // sort
+        const sorted = (contacts || []).sort((a: any, b: any) => {
+          const aTime = a.lastMessage?.createdAt || a.lastMessageTimestamp || a.createdAt;
+          const bTime = b.lastMessage?.createdAt || b.lastMessageTimestamp || b.createdAt;
+          return new Date(bTime).getTime() - new Date(aTime).getTime();
+        });
+
+        // apply presence from ref; default offline
+        const withPresence = (sorted || []).map((c: any) => {
+          const oid = Number(c?.otherUser?.id) || 0;
+          const online = oid ? Boolean(presenceRef.current.get(oid)) : false;
+          return { ...c, otherUser: { ...c.otherUser, isOnline: online } };
+        });
+
+        setPersistentContacts(withPresence);
+      } catch (e) {
+        console.error("❌ fetchContacts:", e);
+        if (showSpinner) setPersistentContacts([]);
+      } finally {
+        if (showSpinner) setIsLoading(false);
+        firstLoadDoneRef.current = true;
+      }
+    },
+    [userId]
+  );
+
+  const loadPersistentContacts = useCallback(async () => {
+    // show spinner only first load or manual refresh
+    const showSpinner = !firstLoadDoneRef.current;
+    await fetchContacts(showSpinner);
+  }, [fetchContacts]);
+
+  const refreshContactsSilently = useCallback(async () => {
+    // never show spinner (prevents "Lade Chats..." while typing)
+    await fetchContacts(false);
+  }, [fetchContacts]);
 
   /**
    * ============================
@@ -364,6 +410,7 @@ export function usePersistentChats(userId?: number, socket?: any) {
         return next;
       });
 
+      // also clear server badge display
       setPersistentContacts((prev) => prev.map((c: any) => (c.id === chat.id ? { ...c, unreadCount: 0 } : c)));
 
       await loadActiveMessages(chat.id);
@@ -377,7 +424,7 @@ export function usePersistentChats(userId?: number, socket?: any) {
 
   /**
    * ============================
-   * Delete Chat (hide for user)
+   * Delete Chat (FAST + silent refresh)
    * ============================
    */
 
@@ -390,10 +437,13 @@ export function usePersistentChats(userId?: number, socket?: any) {
       cutoffsRef.current[String(chatId)] = nowIso;
       saveCutoffs(userId, cutoffsRef.current);
 
+      // remove from UI immediately (FAST)
+      setPersistentContacts((prev) => prev.filter((c: any) => c.id !== chatId));
+
       // clear local messages
       setActiveMessages((prev) => {
         const next = new Map(prev);
-        next.set(chatId, []);
+        next.delete(chatId);
         return next;
       });
 
@@ -407,16 +457,19 @@ export function usePersistentChats(userId?: number, socket?: any) {
         return next;
       });
 
-      // server hide
+      // server hide (no spinner!)
       try {
         await authedFetch(`/api/chats/${chatId}/delete`, { method: "POST" }, 15000);
       } catch (e) {
         console.error("deleteChat server failed:", e);
       }
 
-      await loadPersistentContacts();
+      // sync silently
+      setTimeout(() => {
+        refreshContactsSilently();
+      }, 150);
     },
-    [userId, loadPersistentContacts]
+    [userId, refreshContactsSilently]
   );
 
   /**
@@ -443,7 +496,7 @@ export function usePersistentChats(userId?: number, socket?: any) {
 
   /**
    * ============================
-   * Send Message (upload if file)
+   * Send Message (FAST: no reload spinner)
    * ============================
    */
 
@@ -472,14 +525,21 @@ export function usePersistentChats(userId?: number, socket?: any) {
         destructTimer: secs,
       };
 
+      // append locally immediately
       setActiveMessages((prev) => {
         const next = new Map(prev);
         const arr = next.get(selectedChat.id) || [];
         next.set(selectedChat.id, [...arr, optimistic]);
         return next;
       });
-
       scheduleMessageDeletion(optimistic);
+
+      // update chat list preview instantly (FAST)
+      bumpChatToTopAndUpdateLast(selectedChat.id, {
+        id: tempId,
+        content: type === "image" ? "📷 Photo" : type === "file" ? "📎 File" : content,
+        createdAt: optimistic.createdAt,
+      });
 
       let finalContent = content;
       let fileName: string | undefined;
@@ -498,9 +558,7 @@ export function usePersistentChats(userId?: number, socket?: any) {
             const arr = next.get(selectedChat.id) || [];
             next.set(
               selectedChat.id,
-              arr.map((m: any) =>
-                m.id === tempId ? { ...m, content: finalContent, fileName, fileSize } : m
-              )
+              arr.map((m: any) => (m.id === tempId ? { ...m, content: finalContent, fileName, fileSize } : m))
             );
             return next;
           });
@@ -537,7 +595,7 @@ export function usePersistentChats(userId?: number, socket?: any) {
       const ok = socket.send(wsPayload);
       if (!ok) console.warn("⚠️ WS not open -> queued");
     },
-    [selectedChat, userId, socket, scheduleMessageDeletion]
+    [selectedChat, userId, socket, scheduleMessageDeletion, bumpChatToTopAndUpdateLast]
   );
 
   /**
@@ -565,13 +623,9 @@ export function usePersistentChats(userId?: number, socket?: any) {
     (data: any) => {
       if (!data || typeof data !== "object") return;
 
-;
-
       // online list
       if (data.type === "online_users") {
-        const ids: number[] = Array.isArray(data.userIds)
-          ? data.userIds.map((x: any) => Number(x)).filter(Boolean)
-          : [];
+        const ids: number[] = Array.isArray(data.userIds) ? data.userIds.map((x: any) => Number(x)).filter(Boolean) : [];
         ids.forEach((uid) => {
           if (uid && uid !== userId) applyPresence(uid, true);
         });
@@ -592,7 +646,6 @@ export function usePersistentChats(userId?: number, socket?: any) {
         const username = String(data.username || "").trim();
         if (!uid || !username) return;
 
-        // update contacts
         setPersistentContacts((prev) =>
           prev.map((c: any) => {
             if (Number(c?.otherUser?.id) !== uid) return c;
@@ -600,39 +653,10 @@ export function usePersistentChats(userId?: number, socket?: any) {
           })
         );
 
-        // update selected chat header if needed
         setSelectedChat((prev) => {
           if (!prev) return prev;
           if (Number(prev?.otherUser?.id) !== uid) return prev;
           return { ...prev, otherUser: { ...prev.otherUser, username } };
-        });
-
-        return;
-      }
-
-      // profile deleted
-      if (data.type === "profile_deleted") {
-        const uid = Number(data.userId) || 0;
-        if (!uid) return;
-
-        // if self deleted -> logout
-        if (uid === userId) {
-          try {
-            localStorage.removeItem("user");
-            localStorage.removeItem("token");
-          } catch {}
-          window.location.href = "/";
-          return;
-        }
-
-        // remove chats with that user
-        setPersistentContacts((prev) => prev.filter((c: any) => Number(c?.otherUser?.id) !== uid));
-
-        // close if open
-        setSelectedChat((prev) => {
-          if (!prev) return prev;
-          if (Number(prev?.otherUser?.id) !== uid) return prev;
-          return null;
         });
 
         return;
@@ -665,9 +689,10 @@ export function usePersistentChats(userId?: number, socket?: any) {
       if (data.type === "new_message" && data.message) {
         const m: any = data.message;
 
+        // receiver only
         if (m.receiverId !== userId) return;
 
-        // cutoff check
+        // cutoff
         const cutoffIso = cutoffsRef.current[String(m.chatId)];
         if (cutoffIso) {
           const cutoffMs = toMs(cutoffIso);
@@ -684,7 +709,15 @@ export function usePersistentChats(userId?: number, socket?: any) {
 
         scheduleMessageDeletion(m);
 
-        // badge increase if not open
+        // update list instantly
+        bumpChatToTopAndUpdateLast(m.chatId, {
+          id: m.id,
+          content:
+            m.messageType === "image" ? "📷 Photo" : m.messageType === "file" ? "📎 File" : String(m.content || ""),
+          createdAt: m.createdAt || new Date().toISOString(),
+        });
+
+        // badge increase if chat not open
         if (!selectedChat || selectedChat.id !== m.chatId) {
           setUnreadCounts((prev) => {
             const next = new Map(prev);
@@ -693,11 +726,6 @@ export function usePersistentChats(userId?: number, socket?: any) {
             return next;
           });
         }
-
-        // refresh list ordering / lastMessage
-        setTimeout(() => {
-          loadPersistentContacts();
-        }, 200);
 
         return;
       }
@@ -709,31 +737,25 @@ export function usePersistentChats(userId?: number, socket?: any) {
       clearTypingTimer,
       setTypingState,
       scheduleMessageDeletion,
-      loadPersistentContacts,
+      bumpChatToTopAndUpdateLast,
     ]
   );
 
-  // register WS listeners
   useEffect(() => {
     if (!socket?.on || !userId) return;
 
     const handler = (d: any) => handleWSData(d);
 
-    // some wrappers emit direct events
     socket.on("online_users", handler);
     socket.on("user_status", handler);
     socket.on("profile_updated", handler);
-    socket.on("profile_deleted", handler);
     socket.on("typing", handler);
-
-    // most wrappers emit everything on "message"
     socket.on("message", handler);
 
     return () => {
       socket.off?.("online_users", handler);
       socket.off?.("user_status", handler);
       socket.off?.("profile_updated", handler);
-      socket.off?.("profile_deleted", handler);
       socket.off?.("typing", handler);
       socket.off?.("message", handler);
     };
@@ -746,7 +768,7 @@ export function usePersistentChats(userId?: number, socket?: any) {
     loadPersistentContacts();
   }, [userId, loadPersistentContacts]);
 
-  // cleanup timers
+  // cleanup
   useEffect(() => {
     return () => {
       deletionTimersRef.current.forEach((t) => clearTimeout(t));
