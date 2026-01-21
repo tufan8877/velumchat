@@ -1,12 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LanguageSelector } from "@/components/ui/language-selector";
 import { useToast } from "@/hooks/use-toast";
-import { useLanguage } from "@/lib/i18n";
 import { X, UserRound, Trash2 } from "lucide-react";
 import type { User } from "@shared/schema";
 
@@ -29,15 +26,8 @@ function getToken(): string | null {
 
 export default function SettingsModal({ currentUser, onClose, onUpdateUser }: SettingsModalProps) {
   const { toast } = useToast();
-  const { t } = useLanguage();
 
   const [username, setUsername] = useState(currentUser.username);
-
-  // (Optional UI settings – currently client-only)
-  const [defaultTimer, setDefaultTimer] = useState("86400");
-  const [readReceipts, setReadReceipts] = useState(false);
-  const [typingIndicators, setTypingIndicators] = useState(true);
-
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -71,7 +61,6 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
         throw new Error(data?.message || "Profil konnte nicht gespeichert werden");
       }
 
-      // update local user
       const updatedUser = { ...currentUser, username: newName };
       localStorage.setItem("user", JSON.stringify(updatedUser));
       onUpdateUser(updatedUser);
@@ -105,9 +94,7 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
     try {
       const res = await fetch(`/api/users/${currentUser.id}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await res.json().catch(() => ({}));
@@ -115,7 +102,6 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
         throw new Error(data?.message || "Profil konnte nicht gelöscht werden");
       }
 
-      // clear local session
       try {
         localStorage.removeItem("user");
         localStorage.removeItem("token");
@@ -123,7 +109,6 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
 
       toast({ title: "Profil gelöscht", description: "Dein Profil und Inhalte wurden gelöscht." });
 
-      // redirect to start/login
       window.location.href = "/";
     } catch (err: any) {
       toast({
@@ -134,14 +119,6 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
     } finally {
       setIsDeleting(false);
     }
-  };
-
-  const formatTimerOption = (seconds: string) => {
-    const num = parseInt(seconds, 10);
-    if (num < 60) return `${num} sec`;
-    if (num < 3600) return `${Math.floor(num / 60)} min`;
-    if (num < 86400) return `${Math.floor(num / 3600)} h`;
-    return `${Math.floor(num / 86400)} day`;
   };
 
   return (
@@ -157,7 +134,7 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
         </DialogHeader>
 
         <div className="space-y-8">
-          {/* Profile */}
+          {/* Profil */}
           <div>
             <h3 className="text-lg font-semibold text-text-primary mb-4">Profil</h3>
 
@@ -175,9 +152,6 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
                     placeholder="Neuer Username"
                     className="!bg-surface !text-text-primary !border-border"
                   />
-                  <p className="text-xs text-text-muted mt-2">
-                    Tipp: Username wird serverseitig gespeichert und ist für andere sichtbar.
-                  </p>
                 </div>
               </div>
 
@@ -186,12 +160,7 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
                   {isSaving ? "Speichern..." : "Profil speichern"}
                 </Button>
 
-                <Button
-                  onClick={handleDeleteProfile}
-                  variant="destructive"
-                  className="w-full"
-                  disabled={isDeleting}
-                >
+                <Button onClick={handleDeleteProfile} variant="destructive" className="w-full" disabled={isDeleting}>
                   <Trash2 className="w-4 h-4 mr-2" />
                   {isDeleting ? "Löschen..." : "Profil löschen"}
                 </Button>
@@ -199,7 +168,7 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
             </div>
           </div>
 
-          {/* Language */}
+          {/* Sprache */}
           <div>
             <h3 className="text-lg font-semibold text-text-primary mb-4">Sprache</h3>
             <div className="flex justify-start">
@@ -207,79 +176,12 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
             </div>
           </div>
 
-          {/* Message / Timer (optional) */}
-          <div>
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Nachrichten</h3>
-
-            <div className="flex items-start sm:items-center justify-between gap-3">
-              <div className="min-w-0">
-                <h4 className="font-medium text-text-primary">Default Message Timer</h4>
-                <p className="text-sm text-text-muted break-words whitespace-normal">
-                  Auto-destruct time for new messages
-                </p>
-              </div>
-
-              <Select value={defaultTimer} onValueChange={setDefaultTimer}>
-                <SelectTrigger className="w-40 sm:w-44 bg-surface border-border text-text-primary flex-shrink-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">{formatTimerOption("5")}</SelectItem>
-                  <SelectItem value="30">{formatTimerOption("30")}</SelectItem>
-                  <SelectItem value="60">{formatTimerOption("60")}</SelectItem>
-                  <SelectItem value="300">{formatTimerOption("300")}</SelectItem>
-                  <SelectItem value="3600">{formatTimerOption("3600")}</SelectItem>
-                  <SelectItem value="86400">{formatTimerOption("86400")}</SelectItem>
-                  <SelectItem value="604800">{formatTimerOption("604800")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <p className="text-xs text-text-muted mt-2">
-              Hinweis: Dieser Timer ist aktuell clientseitig. (Wenn du willst, machen wir ihn global pro User in DB.)
-            </p>
-          </div>
-
-          {/* Privacy */}
-          <div>
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Privacy</h3>
-
-            <div className="space-y-4">
-              <div className="flex items-start sm:items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <h4 className="font-medium text-text-primary">Read Receipts</h4>
-                  <p className="text-sm text-text-muted break-words whitespace-normal">
-                    Let others know when you read their messages
-                  </p>
-                </div>
-                <Switch checked={readReceipts} onCheckedChange={setReadReceipts} className="flex-shrink-0" />
-              </div>
-
-              <div className="flex items-start sm:items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <h4 className="font-medium text-text-primary">Typing Indicators</h4>
-                  <p className="text-sm text-text-muted break-words whitespace-normal">
-                    Show when you are typing to others
-                  </p>
-                </div>
-                <Switch checked={typingIndicators} onCheckedChange={setTypingIndicators} className="flex-shrink-0" />
-              </div>
-            </div>
-          </div>
-
           {/* About */}
           <div>
             <h3 className="text-lg font-semibold text-text-primary mb-4">About</h3>
-            <Button variant="outline" className="w-full bg-bg-dark border-border hover:bg-muted/50 text-left h-auto p-4">
-              <div className="w-full flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-text-primary">Export Encryption Keys</h4>
-                  <p className="text-sm text-text-muted break-words whitespace-normal">
-                    Backup your encryption keys securely
-                  </p>
-                </div>
-              </div>
-            </Button>
+            <div className="text-sm text-text-muted">
+              VelumChat – end-to-end encrypted messaging.
+            </div>
           </div>
         </div>
       </DialogContent>
