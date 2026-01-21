@@ -267,14 +267,11 @@ export default function ChatView({
         </div>
       </div>
 
-      {/* Messages: ✅ genug Platz unten für Input + SafeArea */}
+      {/* Messages: genug Platz unten für Input */}
       <div
         ref={scrollRef}
         className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden custom-scrollbar px-3 md:px-4 py-3 space-y-3"
-        style={{
-          // ca. Höhe Input+Footer (damit nichts “unter” der Leiste liegt)
-          paddingBottom: "calc(170px + env(safe-area-inset-bottom))",
-        }}
+        style={{ paddingBottom: "calc(170px + env(safe-area-inset-bottom))" }}
       >
         <div className="text-center">
           <div className="inline-flex items-center gap-2 bg-surface rounded-full px-4 py-2 text-sm text-text-muted">
@@ -305,11 +302,8 @@ export default function ChatView({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input: ✅ sticky + safe area */}
-      <div
-        className="sticky bottom-0 w-full bg-background border-t border-border"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-      >
+      {/* Input sticky + safe area */}
+      <div className="sticky bottom-0 w-full bg-background border-t border-border" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="px-2 pt-2 flex items-end gap-2 flex-nowrap">
           <Button
             variant="ghost"
@@ -371,13 +365,7 @@ export default function ChatView({
           </div>
         </div>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          onChange={handleFileUpload}
-          className="hidden"
-          accept="image/*,.pdf,.doc,.docx,.txt"
-        />
+        <input ref={fileInputRef} type="file" onChange={handleFileUpload} className="hidden" accept="image/*,.pdf,.doc,.docx,.txt" />
       </div>
     </div>
   );
