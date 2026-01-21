@@ -8,13 +8,24 @@ import { LanguageSelector } from "@/components/ui/language-selector";
 
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/lib/i18n";
-import { X, KeyRound, Key, Shield, Info } from "lucide-react";
+import { X, KeyRound, Key } from "lucide-react";
 import type { User } from "@shared/schema";
 
 interface SettingsModalProps {
   currentUser: User & { privateKey: string };
   onClose: () => void;
   onUpdateUser: (user: User & { privateKey: string }) => void;
+}
+
+function getToken(): string | null {
+  try {
+    const raw = localStorage.getItem("user");
+    if (!raw) return null;
+    const u = JSON.parse(raw);
+    return u?.token || u?.accessToken || localStorage.getItem("token") || null;
+  } catch {
+    return localStorage.getItem("token");
+  }
 }
 
 export default function SettingsModal({ currentUser, onClose, onUpdateUser }: SettingsModalProps) {
@@ -30,29 +41,34 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
 
   const handleSaveProfile = async () => {
     if (!username.trim()) {
-      toast({
-        title: t("error"),
-        description: t("usernameEmpty"),
-        variant: "destructive",
-      });
+      toast({ title: t("error"), description: t("usernameEmpty"), variant: "destructive" });
+      return;
+    }
+
+    const token = getToken();
+    if (!token) {
+      toast({ title: t("error"), description: "Missing token. Please login again.", variant: "destructive" });
       return;
     }
 
     try {
       const response = await fetch(`/api/users/${currentUser.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ username: username.trim() }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData?.message || "Failed to update username");
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.message || "Failed to update username");
       }
 
-      await response.json().catch(() => null);
-
       const updatedUser = { ...currentUser, username: username.trim() };
+
       localStorage.setItem("user", JSON.stringify(updatedUser));
       onUpdateUser(updatedUser);
 
@@ -67,15 +83,6 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
     }
   };
 
-  const handleDeleteAccount = async () => {
-    toast({
-      title: t("info"),
-      description:
-        "Account deletion is disabled. Usernames are permanent like Wickr Me. Use logout to clear local data.",
-      variant: "default",
-    });
-  };
-
   const formatTimerOption = (seconds: string) => {
     const num = parseInt(seconds, 10);
     if (num < 60) return `${num} second${num > 1 ? "s" : ""}`;
@@ -87,30 +94,18 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent
-        className="
-          bg-surface border-border
-          w-[calc(100vw-24px)] sm:max-w-2xl
-          max-h-[85dvh] overflow-y-auto
-          p-4 sm:p-6
-        "
+        className="bg-surface border-border w-[calc(100vw-24px)] sm:max-w-2xl max-h-[85dvh] overflow-y-auto p-4 sm:p-6"
       >
         <DialogHeader>
           <div className="flex items-center justify-between gap-3">
             <DialogTitle className="text-2xl font-bold text-text-primary">{t("settingsTitle")}</DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="text-text-muted hover:text-text-primary"
-              aria-label="Close"
-            >
+            <Button variant="ghost" size="sm" onClick={onClose} className="text-text-muted hover:text-text-primary">
               <X className="w-4 h-4" />
             </Button>
           </div>
         </DialogHeader>
 
         <div className="space-y-8">
-          {/* Profile Section */}
           <div>
             <h3 className="text-lg font-semibold text-text-primary mb-4">{t("profile")}</h3>
 
@@ -131,11 +126,6 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
                     />
                   </div>
                 </div>
-
-                <div className="bg-muted/30 p-3 rounded-lg border border-border">
-                  <p className="text-sm text-text-primary font-medium mb-1">💡 {t("changeUsername")}</p>
-                  <p className="text-xs text-text-muted break-words whitespace-normal">{t("usernameDescription")}</p>
-                </div>
               </div>
 
               <Button onClick={handleSaveProfile} className="w-full">
@@ -144,7 +134,6 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
             </div>
           </div>
 
-          {/* Language Settings */}
           <div>
             <h3 className="text-lg font-semibold text-text-primary mb-4">{t("language")}</h3>
             <div className="flex justify-start">
@@ -152,7 +141,6 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
             </div>
           </div>
 
-          {/* Security Settings */}
           <div>
             <h3 className="text-lg font-semibold text-text-primary mb-4">{t("security")}</h3>
 
@@ -196,7 +184,6 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
             </div>
           </div>
 
-          {/* Privacy Settings */}
           <div>
             <h3 className="text-lg font-semibold text-text-primary mb-4">{t("privacy")}</h3>
 
@@ -219,91 +206,20 @@ export default function SettingsModal({ currentUser, onClose, onUpdateUser }: Se
             </div>
           </div>
 
-          {/* Advanced Options */}
           <div>
             <h3 className="text-lg font-semibold text-text-primary mb-4">{t("about")}</h3>
 
-            <div className="space-y-4">
-              {/* ✅ MOBILE FIX: nicht mehr "justify-between" -> flex-col auf mobile, Icon rechts unten */}
-              <Button
-                variant="outline"
-                className="
-                  w-full bg-bg-dark border-border hover:bg-muted/50
-                  text-left h-auto p-4
-                "
-              >
-                <div className="w-full flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-text-primary">{t("exportKeys")}</h4>
-                    <p className="text-sm text-text-muted break-words whitespace-normal">{t("exportKeysDesc")}</p>
-                  </div>
-                  <div className="self-end sm:self-auto flex-shrink-0">
-                    <Key className="w-5 h-5 text-text-muted" />
-                  </div>
+            <Button variant="outline" className="w-full bg-bg-dark border-border hover:bg-muted/50 text-left h-auto p-4">
+              <div className="w-full flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-text-primary">{t("exportKeys")}</h4>
+                  <p className="text-sm text-text-muted break-words whitespace-normal">{t("exportKeysDesc")}</p>
                 </div>
-              </Button>
-
-              <Button
-                variant="outline"
-                className="
-                  w-full bg-bg-dark border-border hover:bg-muted/50
-                  text-left h-auto p-4
-                "
-              >
-                <div className="w-full flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-text-primary">{t("verifySecurityNumber")}</h4>
-                    <p className="text-sm text-text-muted break-words whitespace-normal">
-                      {t("verifySecurityNumberDesc")}
-                    </p>
-                  </div>
-                  <div className="self-end sm:self-auto flex-shrink-0">
-                    <Shield className="w-5 h-5 text-accent" />
-                  </div>
+                <div className="self-end sm:self-auto flex-shrink-0">
+                  <Key className="w-5 h-5 text-text-muted" />
                 </div>
-              </Button>
-
-              <Button
-                variant="outline"
-                className="
-                  w-full bg-bg-dark border-border hover:bg-muted/50
-                  text-left h-auto p-4
-                "
-                onClick={handleDeleteAccount}
-              >
-                <div className="w-full flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-text-primary">{t("permanentAccount")}</h4>
-                    <p className="text-sm text-text-muted break-words whitespace-normal">
-                      {t("permanentAccountDescription")}
-                    </p>
-                  </div>
-                  <div className="self-end sm:self-auto flex-shrink-0">
-                    <Info className="w-5 h-5 text-primary" />
-                  </div>
-                </div>
-              </Button>
-            </div>
-          </div>
-
-          {/* About Footer */}
-          <div className="border-t border-border pt-6">
-            <div className="text-center space-y-2">
-              {/* ✅ Whispergram -> VelumChat */}
-              <p className="text-sm text-text-muted">VelumChat v1.0.0</p>
-
-              <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
-                <Button variant="link" className="text-primary hover:text-primary/80 p-0 h-auto">
-                  {t("privacyPolicy")}
-                </Button>
-                <Button variant="link" className="text-primary hover:text-primary/80 p-0 h-auto">
-                  {t("sourceCode")}
-                </Button>
-                <Button variant="link" className="text-primary hover:text-primary/80 p-0 h-auto">
-                  {t("securityAudit")}
-                </Button>
               </div>
-            </div>
+            </Button>
           </div>
         </div>
       </DialogContent>
